@@ -3929,7 +3929,7 @@ namespace vitex
 		public:
 			ualloc() noexcept : thread((schedule::thread_data*)schedule::get()->get_thread())
 			{
-				VI_PANIC(!thread, "this thread is not a scheduler thread");
+				VI_PANIC(thread, "this thread is not a scheduler thread");
 				memory::set_local_allocator(&thread->allocator);
 			}
 			ualloc(const ualloc& other) noexcept = delete;
