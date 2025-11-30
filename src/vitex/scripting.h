@@ -860,7 +860,6 @@ namespace vitex
 			size_t get_properties_count() const;
 			expects_vm<void> get_property(size_t index, std::string_view* name, int* type_id = nullptr) const;
 			std::string_view get_property_decl(size_t index, bool include_namespace = false) const;
-			int find_next_line_with_code(int line) const;
 			void* set_user_data(void* user_data, size_t type = 0);
 			void* get_user_data(size_t type = 0) const;
 			bool is_valid() const;
@@ -1786,7 +1785,6 @@ namespace vitex
 			void list_global_variables(immediate_context* context);
 			void list_member_properties(immediate_context* context);
 			void list_source_code(immediate_context* context);
-			void list_definitions(immediate_context* context);
 			void list_statistics(immediate_context* context);
 			void print_callstack(immediate_context* context);
 			void print_value(const std::string_view& expression, immediate_context* context);
@@ -2079,7 +2077,6 @@ namespace vitex
 			void set_full_stack_tracing(bool enabled);
 			void set_ts_imports(bool enabled, const std::string_view& import_syntax = "import from");
 			void set_ts_imports_concat_mode(bool enabled);
-			void set_keyword_restriction(const std::string_view& keyword, bool enabled);
 			void set_cache(bool enabled);
 			void set_exception_callback(std::function<void(immediate_context*)>&& callback);
 			void set_debugger(debugger_context* context);
@@ -2107,7 +2104,6 @@ namespace vitex
 			void gc_enum_callback(function_delegate* reference);
 			bool trigger_debugger(immediate_context* context, uint64_t timeout_ms = 0);
 			compute::expects_preprocessor<void> generate_code(compute::preprocessor* processor, const std::string_view& path, core::string& inout_buffer);
-			core::unordered_map<core::string, core::string> generate_definitions(immediate_context* context);
 			compiler* create_compiler();
 			asIScriptModule* create_scoped_module(const std::string_view& name);
 			asIScriptModule* create_module(const std::string_view& name);

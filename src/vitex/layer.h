@@ -1,11 +1,16 @@
 #ifndef VI_LAYER_H
 #define VI_LAYER_H
-#include "scripting.h"
+#include "core.h"
 #include <atomic>
 #include <cstdarg>
 
 namespace vitex
 {
+	namespace scripting
+	{
+		class virtual_machine;
+	}
+
 	namespace layer
 	{
 		typedef std::function<void(class content_manager*, bool)> save_callback;

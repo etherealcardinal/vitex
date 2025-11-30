@@ -3,6 +3,7 @@
 #include "network/http.h"
 #include "network/mongo.h"
 #include "network/pq.h"
+#include "scripting.h"
 #include "vitex.h"
 #include <sstream>
 #define CONTENT_BLOCKED_WAIT_MS 50

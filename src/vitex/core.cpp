@@ -969,7 +969,7 @@ namespace vitex
 			LPVOID context = nullptr;
 			bool main = false;
 #else
-			ucontext_t context = nullptr;
+			ucontext_t context;
 			char* stack = nullptr;
 #endif
 			cocontext()

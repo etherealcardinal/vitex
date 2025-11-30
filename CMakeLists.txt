@@ -25,6 +25,17 @@ endif()
 
 #Project's source code lists generation
 include(deps/sources.cmake)
+if (DEFINED VI_SOURCE_EXCLUDE)
+	list(FILTER SOURCE EXCLUDE REGEX ${VI_SOURCE_EXCLUDE})
+endif()
+
+# Group all sources for nice IDE preview
+foreach(ITEM IN ITEMS ${SOURCE})
+    get_filename_component(ITEM_PATH "${ITEM}" PATH)
+    string(REPLACE "${BASE_PATH}" "" ITEM_GROUP "${ITEM_PATH}")
+    string(REPLACE "/" "\\" ITEM_GROUP "${ITEM_GROUP}")
+    source_group("${ITEM_GROUP}" FILES "${ITEM}")
+endforeach()
 
 #Project's library target and properties
 add_library(vitex ${SOURCE})

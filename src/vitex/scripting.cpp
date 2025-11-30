@@ -6,20 +6,21 @@
 #ifdef VI_ANGELSCRIPT
 #include <angelscript.h>
 #include <as_texts.h>
+#include <as_scriptengine.h>
 #define COMPILER_BLOCKED_WAIT_US 100
 #define THREAD_BLOCKED_WAIT_MS 50
 
 namespace
 {
-	struct byte_code_stream : public asIBinaryStream
+	struct code_binary_stream : public asIBinaryStream
 	{
 		vitex::core::vector<asBYTE> code;
 		int read_pos, write_pos;
 
-		byte_code_stream() : read_pos(0), write_pos(0)
+		code_binary_stream() : read_pos(0), write_pos(0)
 		{
 		}
-		byte_code_stream(const vitex::core::vector<asBYTE>& data) : code(data), read_pos(0), write_pos(0)
+		code_binary_stream(const vitex::core::vector<asBYTE>& data) : code(data), read_pos(0), write_pos(0)
 		{
 		}
 		int Read(void* ptr, asUINT size) override
@@ -48,139 +49,6 @@ namespace
 			return (asUINT)code.size();
 		}
 	};
-
-	struct denum
-	{
-		vitex::core::vector<vitex::core::string> values;
-	};
-
-	struct dclass
-	{
-		vitex::core::vector<vitex::core::string> props;
-		vitex::core::vector<vitex::core::string> interfaces;
-		vitex::core::vector<vitex::core::string> types;
-		vitex::core::vector<vitex::core::string> funcdefs;
-		vitex::core::vector<vitex::core::string> methods;
-		vitex::core::vector<vitex::core::string> functions;
-	};
-
-	struct dnamespace
-	{
-		vitex::core::unordered_map<vitex::core::string, denum> enums;
-		vitex::core::unordered_map<vitex::core::string, dclass> classes;
-		vitex::core::vector<vitex::core::string> funcdefs;
-		vitex::core::vector<vitex::core::string> functions;
-	};
-
-	vitex::core::string get_combination(const vitex::core::vector<vitex::core::string>& names, const vitex::core::string& by)
-	{
-		vitex::core::string result;
-		for (size_t i = 0; i < names.size(); i++)
-		{
-			result.append(names[i]);
-			if (i + 1 < names.size())
-				result.append(by);
-		}
-
-		return result;
-	}
-	vitex::core::string get_combination_all(const vitex::core::vector<vitex::core::string>& names, const vitex::core::string& by, const vitex::core::string& end_by)
-	{
-		vitex::core::string result;
-		for (size_t i = 0; i < names.size(); i++)
-		{
-			result.append(names[i]);
-			if (i + 1 < names.size())
-				result.append(by);
-			else
-				result.append(end_by);
-		}
-
-		return result;
-	}
-	vitex::core::string get_type_naming(asITypeInfo* type)
-	{
-		const char* name_space = type->GetNamespace();
-		return (name_space ? name_space + vitex::core::string("::") : vitex::core::string("")) + type->GetName();
-	}
-	asITypeInfo* get_type_namespacing(asIScriptEngine* engine, const vitex::core::string& name)
-	{
-		asITypeInfo* result = engine->GetTypeInfoByName(name.c_str());
-		if (result != nullptr)
-			return result;
-
-		return engine->GetTypeInfoByName((name + "@").c_str());
-	}
-	void dump_namespace(vitex::core::string& source, const vitex::core::string& naming, dnamespace& name_space, vitex::core::string& offset)
-	{
-		if (!naming.empty())
-		{
-			offset.append("\t");
-			source += vitex::core::stringify::text("namespace %s\n{\n", naming.c_str());
-		}
-
-		for (auto it = name_space.enums.begin(); it != name_space.enums.end(); it++)
-		{
-			auto copy = it;
-			source += vitex::core::stringify::text("%senum %s\n%s{\n\t%s", offset.c_str(), it->first.c_str(), offset.c_str(), offset.c_str());
-			source += vitex::core::stringify::text("%s", get_combination(it->second.values, ",\n\t" + offset).c_str());
-			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), ++copy != name_space.enums.end() ? "\n" : "");
-		}
-
-		if (!name_space.enums.empty() && (!name_space.classes.empty() || !name_space.funcdefs.empty() || !name_space.functions.empty()))
-			source += vitex::core::stringify::text("\n");
-
-		for (auto it = name_space.classes.begin(); it != name_space.classes.end(); it++)
-		{
-			auto copy = it;
-			source += vitex::core::stringify::text("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
-				offset.c_str(),
-				it->first.c_str(),
-				it->second.types.empty() ? "" : "<",
-				it->second.types.empty() ? "" : get_combination(it->second.types, ", ").c_str(),
-				it->second.types.empty() ? "" : ">",
-				it->second.interfaces.empty() ? "" : " : ",
-				it->second.interfaces.empty() ? "" : get_combination(it->second.interfaces, ", ").c_str(),
-				offset.c_str(), offset.c_str());
-			source += vitex::core::stringify::text("%s", get_combination_all(it->second.funcdefs, ";\n\t" + offset, it->second.props.empty() && it->second.methods.empty() ? ";" : ";\n\n\t" + offset).c_str());
-			source += vitex::core::stringify::text("%s", get_combination_all(it->second.props, ";\n\t" + offset, it->second.methods.empty() ? ";" : ";\n\n\t" + offset).c_str());
-			source += vitex::core::stringify::text("%s", get_combination_all(it->second.methods, ";\n\t" + offset, ";").c_str());
-			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), !it->second.functions.empty() || ++copy != name_space.classes.end() ? "\n" : "");
-
-			if (it->second.functions.empty())
-				continue;
-
-			source += vitex::core::stringify::text("%snamespace %s\n%s{\n\t%s", offset.c_str(), it->first.c_str(), offset.c_str(), offset.c_str());
-			source += vitex::core::stringify::text("%s", get_combination_all(it->second.functions, ";\n\t" + offset, ";").c_str());
-			source += vitex::core::stringify::text("\n%s}\n%s", offset.c_str(), ++copy != name_space.classes.end() ? "\n" : "");
-		}
-
-		if (!name_space.funcdefs.empty())
-		{
-			if (!name_space.enums.empty() || !name_space.classes.empty())
-				source += vitex::core::stringify::text("\n%s", offset.c_str());
-			else
-				source += vitex::core::stringify::text("%s", offset.c_str());
-		}
-
-		source += vitex::core::stringify::text("%s", get_combination_all(name_space.funcdefs, ";\n" + offset, name_space.functions.empty() ? ";\n" : "\n\n" + offset).c_str());
-		if (!name_space.functions.empty() && name_space.funcdefs.empty())
-		{
-			if (!name_space.enums.empty() || !name_space.classes.empty())
-				source += vitex::core::stringify::text("\n");
-			else
-				source += vitex::core::stringify::text("%s", offset.c_str());
-		}
-
-		source += vitex::core::stringify::text("%s", get_combination_all(name_space.functions, ";\n" + offset, ";\n").c_str());
-		if (!naming.empty())
-		{
-			source += vitex::core::stringify::text("}");
-			offset.erase(offset.begin());
-		}
-		else
-			source.erase(source.end() - 1);
-	}
 }
 #endif
 
@@ -191,9 +59,9 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 		struct string_factory : public asIStringFactory
 		{
-			vitex::scripting::to_string_constant_ptr to_string_constant;
-			vitex::scripting::from_string_constant_ptr from_string_constant;
-			vitex::scripting::free_string_constant_ptr free_string_constant;
+			to_string_constant_ptr to_string_constant;
+			from_string_constant_ptr from_string_constant;
+			free_string_constant_ptr free_string_constant;
 			void* context;
 
 			string_factory() : to_string_constant(nullptr), from_string_constant(nullptr), free_string_constant(nullptr), context(nullptr)
@@ -1411,15 +1279,6 @@ namespace vitex
 			return "";
 #endif
 		}
-		int function::find_next_line_with_code(int line) const
-		{
-			VI_ASSERT(is_valid(), "function should be valid");
-#ifdef VI_ANGELSCRIPT
-			return ptr->FindNextLineWithCode(line);
-#else
-			return -1;
-#endif
-		}
 		void* function::set_user_data(void* user_data, size_t type)
 		{
 			VI_ASSERT(is_valid(), "function should be valid");
@@ -2346,7 +2205,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			byte_code_stream* stream = core::memory::init<byte_code_stream>(info->data);
+			code_binary_stream* stream = core::memory::init<code_binary_stream>(info->data);
 			int r = mod->LoadByteCode(stream, &info->debug);
 			core::memory::deinit(stream);
 			return function_factory::to_return(r);
@@ -2525,7 +2384,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "module should be valid");
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
-			byte_code_stream* stream = core::memory::init<byte_code_stream>();
+			code_binary_stream* stream = core::memory::init<code_binary_stream>();
 			int r = mod->SaveByteCode(stream, info->debug);
 			info->data = stream->GetCode();
 			core::memory::deinit(stream);
@@ -3256,7 +3115,7 @@ namespace vitex
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 			VI_ASSERT(built, "module should be built");
 #ifdef VI_ANGELSCRIPT
-			byte_code_stream* stream = core::memory::init<byte_code_stream>();
+			code_binary_stream* stream = core::memory::init<code_binary_stream>();
 			int r = scope->SaveByteCode(stream, !info->debug);
 			info->data = stream->GetCode();
 			core::memory::deinit(stream);
@@ -3332,7 +3191,7 @@ namespace vitex
 			VI_ASSERT(info != nullptr, "bytecode should be set");
 #ifdef VI_ANGELSCRIPT
 			int r = 0;
-			byte_code_stream* stream = core::memory::init<byte_code_stream>(info->data);
+			code_binary_stream* stream = core::memory::init<code_binary_stream>(info->data);
 			while ((r = scope->LoadByteCode(stream, &info->debug)) == asBUILD_IN_PROGRESS)
 				std::this_thread::sleep_for(std::chrono::microseconds(COMPILER_BLOCKED_WAIT_US));
 			core::memory::deinit(stream);
@@ -3730,11 +3589,6 @@ namespace vitex
 					print_byte_code(args[1], context);
 					return false;
 				}
-				else if (args[0] == "td" || args[0] == "types")
-				{
-					list_definitions(context);
-					return false;
-				}
 				else if (args[0] == "gc" || args[0] == "garbage")
 				{
 					list_statistics(context);
@@ -3753,7 +3607,6 @@ namespace vitex
 					"  info c, info code - show source code section\n"
 					"  info a, info addons - show imported addons\n"
 					"  info f, info function <declaration> - dump compiled function bytecode by name or declaration\n"
-					"  info td, info types - show registered script virtual interfaces\n"
 					"  info gc, info garbage - show gc statistics\n");
 				return false;
 			});
@@ -3807,24 +3660,6 @@ namespace vitex
 			add_command("a, abort", "abort current execution", args_type::no_args, [](immediate_context* context, const core::vector<core::string>& args)
 			{
 				context->abort();
-				return false;
-			});
-			add_command("td, types", "generate type definitions", args_type::expression, [this](immediate_context* context, const core::vector<core::string>& args)
-			{
-				if (!args.empty())
-				{
-					core::string result;
-					for (auto& definitions : vm->generate_definitions(context))
-						result.append(definitions.second);
-
-					auto path = core::os::path::resolve(args[0]);
-					if (path)
-						core::os::file::write(args[0], (uint8_t*)result.data(), result.size()).report("file write error");
-					else
-						path.report("invalid path");
-				}
-				else
-					output("  types <result file name>\n");
 				return false;
 			});
 			add_command("bt, backtrace", "show current callstack", args_type::no_args, [this](immediate_context* context, const core::vector<core::string>& args)
@@ -4883,17 +4718,6 @@ namespace vitex
 				output(line + '\n');
 			}
 		}
-		void debugger_context::list_definitions(immediate_context* context)
-		{
-			for (auto& interfacef : vm->generate_definitions(context))
-			{
-				output("  listing generated <" + interfacef.first + ">:\n");
-				core::stringify::replace(interfacef.second, "\t", "  ");
-				for (auto& line : core::stringify::split(interfacef.second, '\n'))
-					output("    " + line + "\n");
-				output("\n");
-			}
-		}
 		void debugger_context::list_statistics(immediate_context* context)
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
@@ -5001,33 +4825,58 @@ namespace vitex
 			{
 				for (size_t n = 0; n < break_points.size(); n++)
 				{
-					if (break_points[n].function)
+					auto& bp = break_points[n];
+					if (bp.function)
 					{
-						if (break_points[n].name == function->GetName())
+						if (bp.name == function->GetName())
 						{
 							core::string_stream stream;
-							stream << "  entering function '" << break_points[n].name << "', transforming it into break point" << std::endl;
+							stream << "  entering function '" << bp.name << "', transforming it into break point" << std::endl;
 							output(stream.str());
 
-							break_points[n].name = file;
-							break_points[n].line = line;
-							break_points[n].function = false;
-							break_points[n].needs_adjusting = false;
+							bp.name = file;
+							bp.line = line;
+							bp.function = false;
+							bp.needs_adjusting = false;
 						}
 					}
-					else if (break_points[n].needs_adjusting && break_points[n].name == file)
+					else if (bp.needs_adjusting && bp.name == file)
 					{
-						int number = function->FindNextLineWithCode(break_points[n].line);
-						if (number >= 0)
+						const char* sectionName;
+						int lowest_line = bp.line + 1, next_line = bp.line - 1, row;
+						function->GetDeclaredAt(&sectionName, &row, 0);
+						std::string_view entry_file = sectionName ? sectionName : "";
+						size_t r = entry_file.find_last_of("\\/");
+						if (r != std::string_view::npos)
+							entry_file = entry_file.substr(r + 1);
+						if (entry_file == file)
+							lowest_line = std::min(row, lowest_line);
+
+						int line_entries = function->GetLineEntryCount();
+						for (int i = 0; i < line_entries; i++)
 						{
-							break_points[n].needs_adjusting = false;
-							if (number != break_points[n].line && std::abs(number - break_points[n].line) < 10)
+							function->GetLineEntry(i, &row, 0, &sectionName, 0);
+							entry_file = sectionName ? sectionName : "";
+							size_t r = entry_file.find_last_of("\\/");
+							if (r != std::string_view::npos)
+								entry_file = entry_file.substr(r + 1);
+							if (entry_file != file)
+								continue;
+
+							lowest_line = std::min(row, lowest_line);
+							if (row >= bp.line && (row < next_line || next_line < bp.line))
+								next_line = row;
+						}
+
+						if (lowest_line <= bp.line && next_line >= bp.line)
+						{
+							bp.needs_adjusting = false;
+							if (next_line != bp.line)
 							{
 								core::string_stream stream;
-								stream << "  moving break point " << n << " in file '" << file << "' to next line with code at line " << number << std::endl;
+								stream << "  moving break point " << n << " in file '" << file << "' to next line with code at line " << next_line << std::endl;
 								output(stream.str());
-
-								break_points[n].line = number;
+								bp.line = next_line;
 							}
 						}
 					}
@@ -5236,7 +5085,7 @@ namespace vitex
 			stream << "\n";
 			return offset + label.size;
 #else
-			return program_pointer + 1;
+			return offset + 1;
 #endif
 		}
 		core::string debugger_context::to_string(int depth, void* value, unsigned int type_id)
@@ -7181,21 +7030,6 @@ namespace vitex
 		{
 			concat_code = enabled;
 		}
-		void virtual_machine::set_keyword_restriction(const std::string_view& keyword, bool enabled)
-		{
-			auto keyword_token = core::string(keyword);
-			auto keyword_name = compute::codec::hex_encode(keyword_token) + "-restriction";
-			set_code_generator(keyword_name, enabled ? generator_callback([keyword_token](compute::preprocessor* base, const std::string_view& path, core::string& code) -> expects_vm<void>
-			{
-				return parser::replace_inline_preconditions(keyword_token, code, [keyword_token](const std::string_view& expression) -> expects_vm<core::string>
-				{
-					return virtual_exception(virtual_error::not_supported, core::stringify::text("use of restricted keyword \"%s\" in \"%s%s%.*s\"",
-						keyword_token.c_str(), keyword_token.c_str(),
-						!expression.empty() && !core::stringify::is_whitespace(expression.front()) ? " " : "",
-						(int)expression.size(), expression.data()));
-				});
-			}) : generator_callback(nullptr));
-		}
 		void virtual_machine::set_cache(bool enabled)
 		{
 			save_cache = enabled;
@@ -7580,208 +7414,6 @@ namespace vitex
 
 			(void)target_path;
 			return status;
-		}
-		core::unordered_map<core::string, core::string> virtual_machine::generate_definitions(immediate_context* context)
-		{
-#ifdef VI_ANGELSCRIPT
-			core::unordered_set<core::string> grouping;
-			core::unordered_map<core::string, core::string> sources;
-			core::unordered_map<core::string, dnamespace> namespaces;
-			core::unordered_map<core::string, core::vector<std::pair<core::string, dnamespace*>>> groups;
-			auto add_group = [&grouping, &namespaces, &groups](const core::string& current_name)
-			{
-				auto& group = groups[current_name];
-				for (auto& name_space : namespaces)
-				{
-					if (grouping.find(name_space.first) == grouping.end())
-					{
-						group.push_back(std::make_pair(name_space.first, &name_space.second));
-						grouping.insert(name_space.first);
-					}
-				}
-			};
-			auto add_enum = [&namespaces](asITypeInfo* etype)
-			{
-				const char* enamespace = etype->GetNamespace();
-				dnamespace& name_space = namespaces[enamespace ? enamespace : ""];
-				denum& enumerator = name_space.enums[etype->GetName()];
-				asUINT values_count = etype->GetEnumValueCount();
-
-				for (asUINT j = 0; j < values_count; j++)
-				{
-					asINT64 evalue;
-					const char* ename = etype->GetEnumValueByIndex(j, &evalue);
-					enumerator.values.push_back(core::stringify::text("%s = %i", ename ? ename : core::to_string(j).c_str(), evalue));
-				}
-			};
-			auto add_object = [this, &namespaces](asITypeInfo* etype)
-			{
-				asITypeInfo* ebase = etype->GetBaseType();
-				const char* cnamespace = etype->GetNamespace();
-				const char* cname = etype->GetName();
-				dnamespace& name_space = namespaces[cnamespace ? cnamespace : ""];
-				dclass& data_class = name_space.classes[cname];
-				asUINT types_count = etype->GetSubTypeCount();
-				asUINT interfaces_count = etype->GetInterfaceCount();
-				asUINT funcdefs_count = etype->GetChildFuncdefCount();
-				asUINT props_count = etype->GetPropertyCount();
-				asUINT factories_count = etype->GetFactoryCount();
-				asUINT methods_count = etype->GetMethodCount();
-
-				if (ebase != nullptr)
-					data_class.interfaces.push_back(get_type_naming(ebase));
-
-				for (asUINT j = 0; j < interfaces_count; j++)
-				{
-					asITypeInfo* itype = etype->GetInterface(j);
-					data_class.interfaces.push_back(get_type_naming(itype));
-				}
-
-				for (asUINT j = 0; j < types_count; j++)
-				{
-					int stype_id = etype->GetSubTypeId(j);
-					const char* sdecl = engine->GetTypeDeclaration(stype_id, true);
-					data_class.types.push_back(core::string("class ") + (sdecl ? sdecl : "__type__"));
-				}
-
-				for (asUINT j = 0; j < funcdefs_count; j++)
-				{
-					asITypeInfo* ftype = etype->GetChildFuncdef(j);
-					asIScriptFunction* ffunction = ftype->GetFuncdefSignature();
-					const char* fdecl = ffunction->GetDeclaration(false, false, true);
-					data_class.funcdefs.push_back(core::string("funcdef ") + (fdecl ? fdecl : "void __unnamed" + core::to_string(j) + "__()"));
-				}
-
-				for (asUINT j = 0; j < props_count; j++)
-				{
-					const char* pname; int ptype_id; bool pprivate, pprotected;
-					if (etype->GetProperty(j, &pname, &ptype_id, &pprivate, &pprotected) != 0)
-						continue;
-
-					const char* pdecl = engine->GetTypeDeclaration(ptype_id, true);
-					const char* pmod = (pprivate ? "private " : (pprotected ? "protected " : nullptr));
-					data_class.props.push_back(core::stringify::text("%s%s %s", pmod ? pmod : "", pdecl ? pdecl : "__type__", pname ? pname : ("__unnamed" + core::to_string(j) + "__").c_str()));
-				}
-
-				for (asUINT j = 0; j < factories_count; j++)
-				{
-					asIScriptFunction* ffunction = etype->GetFactoryByIndex(j);
-					const char* fdecl = ffunction->GetDeclaration(false, false, true);
-					data_class.methods.push_back(fdecl ? core::string(fdecl) : "void " + core::string(cname) + "()");
-				}
-
-				for (asUINT j = 0; j < methods_count; j++)
-				{
-					asIScriptFunction* ffunction = etype->GetMethodByIndex(j);
-					const char* fdecl = ffunction->GetDeclaration(false, false, true);
-					data_class.methods.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(j) + "__()");
-				}
-			};
-			auto add_function = [this, &namespaces](asIScriptFunction* ffunction, asUINT index)
-			{
-				const char* fnamespace = ffunction->GetNamespace();
-				const char* fdecl = ffunction->GetDeclaration(false, false, true);
-
-				if (fnamespace != nullptr && *fnamespace != '\0')
-				{
-					asITypeInfo* ftype = get_type_namespacing(engine, fnamespace);
-					if (ftype != nullptr)
-					{
-						const char* cnamespace = ftype->GetNamespace();
-						const char* cname = ftype->GetName();
-						dnamespace& name_space = namespaces[cnamespace ? cnamespace : ""];
-						dclass& data_class = name_space.classes[cname];
-						const char* fdecl = ffunction->GetDeclaration(false, false, true);
-						data_class.functions.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()");
-						return;
-					}
-				}
-
-				dnamespace& name_space = namespaces[fnamespace ? fnamespace : ""];
-				name_space.functions.push_back(fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()");
-			};
-			auto add_funcdef = [&namespaces](asITypeInfo* ftype, asUINT index)
-			{
-				if (ftype->GetParentType() != nullptr)
-					return;
-
-				asIScriptFunction* ffunction = ftype->GetFuncdefSignature();
-				const char* fnamespace = ftype->GetNamespace();
-				dnamespace& name_space = namespaces[fnamespace ? fnamespace : ""];
-				const char* fdecl = ffunction->GetDeclaration(false, false, true);
-				name_space.funcdefs.push_back(core::string("funcdef ") + (fdecl ? fdecl : "void __unnamed" + core::to_string(index) + "__()"));
-			};
-
-			asUINT enums_count = engine->GetEnumCount();
-			for (asUINT i = 0; i < enums_count; i++)
-				add_enum(engine->GetEnumByIndex(i));
-
-			asUINT objects_count = engine->GetObjectTypeCount();
-			for (asUINT i = 0; i < objects_count; i++)
-				add_object(engine->GetObjectTypeByIndex(i));
-
-			asUINT functions_count = engine->GetGlobalFunctionCount();
-			for (asUINT i = 0; i < functions_count; i++)
-				add_function(engine->GetGlobalFunctionByIndex(i), i);
-
-			asUINT funcdefs_count = engine->GetFuncdefCount();
-			for (asUINT i = 0; i < funcdefs_count; i++)
-				add_funcdef(engine->GetFuncdefByIndex(i), i);
-
-			core::string module_name = "anonymous.as.predefined";
-			if (context != nullptr)
-			{
-				asIScriptFunction* function = context->get_function().get_function();
-				if (function != nullptr)
-				{
-					asIScriptModule* library = function->GetModule();
-					if (library != nullptr)
-					{
-						asUINT enums_count = library->GetEnumCount();
-						for (asUINT i = 0; i < enums_count; i++)
-							add_enum(library->GetEnumByIndex(i));
-
-						asUINT objects_count = library->GetObjectTypeCount();
-						for (asUINT i = 0; i < objects_count; i++)
-							add_object(library->GetObjectTypeByIndex(i));
-
-						asUINT functions_count = library->GetFunctionCount();
-						for (asUINT i = 0; i < functions_count; i++)
-							add_function(library->GetFunctionByIndex(i), i);
-
-						module_name = library->GetName();
-						if (core::stringify::ends_with(module_name, ".as"))
-							module_name.append(".predefined");
-						else
-							module_name.append(".as.predefined");
-					}
-				}
-			}
-
-			add_group(module_name);
-			for (auto& group : groups)
-			{
-				core::string offset;
-				VI_SORT(group.second.begin(), group.second.end(), [](const auto& a, const auto& b)
-				{
-					return a.first.size() < b.first.size();
-				});
-
-				auto& source = sources[group.first];
-				auto& list = group.second;
-				for (auto it = list.begin(); it != list.end(); it++)
-				{
-					auto copy = it;
-					dump_namespace(source, it->first, *it->second, offset);
-					if (++copy != list.end())
-						source += "\n\n";
-				}
-			}
-
-			return sources;
-#else
-			return core::unordered_map<core::string, core::string>();
-#endif
 		}
 		size_t virtual_machine::begin_access_mask(size_t default_mask)
 		{
