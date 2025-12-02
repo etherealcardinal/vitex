@@ -3802,6 +3802,20 @@ namespace vitex
 		{
 			return set_socket_flag(SO_KEEPALIVE, (enabled ? 1 : 0));
 		}
+		core::expects_io<void> socket::set_keep_alive_params(int idle_seconds, int ping_interval, int probes)
+		{
+			VI_TRACE("net fd %i setopt: keepalive %i %i %i", (int)fd, idle_seconds, ping_interval, probes);
+			if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idle_seconds, sizeof(idle_seconds)) != 0)
+				return core::os::error::get_condition_or();
+
+			if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&ping_interval, sizeof(ping_interval)) != 0)
+				return core::os::error::get_condition_or();
+
+			if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&probes, sizeof(probes)) != 0)
+				return core::os::error::get_condition_or();
+
+			return core::expectation::met;
+		}
 		core::expects_io<void> socket::set_timeout(int timeout)
 		{
 			VI_TRACE("net fd %i setopt: rwtimeout %i", (int)fd, timeout);

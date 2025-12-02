@@ -570,6 +570,7 @@ namespace vitex
 			core::expects_io<void> set_blocking(bool enabled);
 			core::expects_io<void> set_no_delay(bool enabled);
 			core::expects_io<void> set_keep_alive(bool enabled);
+			core::expects_io<void> set_keep_alive_params(int idle_seconds, int ping_interval, int probes);
 			core::expects_io<void> set_timeout(int timeout);
 			core::expects_io<void> get_socket(int option, void* value, size_t* size);
 			core::expects_io<void> get_any(int level, int option, void* value, size_t* size);
