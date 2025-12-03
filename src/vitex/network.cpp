@@ -2107,7 +2107,7 @@ namespace vitex
 			bool was_listening_read = !!value->events.read_callback;
 			bool still_listening_write = !!value->events.write_callback;
 			value->events.read_callback.swap(when_ready);
-			bool listening = (when_ready ? handle.update(value, true, still_listening_write) : handle.add(value, true, still_listening_write));
+			bool listening = (was_listening_read || still_listening_write ? handle.update(value, true, true) : handle.add(value, true, false));
 			if (!was_listening_read && !still_listening_write)
 				add_timeout(value, core::schedule::get_clock());
 
@@ -2124,7 +2124,7 @@ namespace vitex
 			bool still_listening_read = !!value->events.read_callback;
 			bool was_listening_write = !!value->events.write_callback;
 			value->events.write_callback.swap(when_ready);
-			bool listening = (when_ready ? handle.update(value, still_listening_read, true) : handle.add(value, still_listening_read, true));
+			bool listening = (still_listening_read || was_listening_write ? handle.update(value, true, true) : handle.add(value, false, true));
 			if (!was_listening_write && !still_listening_read)
 				add_timeout(value, core::schedule::get_clock());
 
