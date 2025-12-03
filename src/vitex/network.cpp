@@ -1424,23 +1424,18 @@ namespace vitex
 #endif
 #ifdef VI_MICROSOFT
 			error_code = WSAGetLastError();
+			if (error_code == 0)
+				return std::make_error_condition(std::errc::connection_reset);
+			else if (error_code == EAGAIN || error_code == EWOULDBLOCK || error_code == EINPROGRESS || error_code == WSAEWOULDBLOCK)
+				return std::make_error_condition(std::errc::operation_would_block);
 #else
 			error_code = errno;
+			if (error_code == 0)
+				return std::make_error_condition(std::errc::connection_reset);
+			else if (error_code == EAGAIN || error_code == EWOULDBLOCK || error_code == EINPROGRESS)
+				return std::make_error_condition(std::errc::operation_would_block);
 #endif
-			switch (error_code)
-			{
-#ifdef VI_MICROSOFT
-				case WSAEWOULDBLOCK:
-#endif
-				case EWOULDBLOCK:
-				case EINPROGRESS:
-				case EAGAIN:
-					return std::make_error_condition(std::errc::operation_would_block);
-				case 0:
-					return std::make_error_condition(std::errc::connection_reset);
-				default:
-					return core::os::error::get_condition(error_code);
-			}
+			return core::os::error::get_condition(error_code);
 		}
 		core::option<socket_cidr> utils::parse_address_mask(const std::string_view& mask) noexcept
 		{
