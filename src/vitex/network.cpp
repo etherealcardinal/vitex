@@ -1434,6 +1434,7 @@ namespace vitex
 #endif
 				case EWOULDBLOCK:
 				case EINPROGRESS:
+				case EAGAIN:
 					return std::make_error_condition(std::errc::operation_would_block);
 				case 0:
 					return std::make_error_condition(std::errc::connection_reset);
@@ -3093,20 +3094,12 @@ namespace vitex
 
 			VI_TRACE("net fd %i write %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
-			if (device != nullptr)
-			{
-				int value = SSL_write(device, buffer, (int)size);
-				if (value <= 0)
-					return utils::get_last_error(device, value);
-
-				size_t written = (size_t)value;
-				outcome += written;
-				return written;
-			}
-#endif
+			int value = device ? SSL_write(device, buffer, (int)size) : (int)send(fd, (char*)buffer, (int)size, 0);
+#else
 			int value = (int)send(fd, (char*)buffer, (int)size, 0);
+#endif
 			if (value == 0)
-				return std::make_error_condition(std::errc::operation_would_block);
+				return std::make_error_condition(std::errc::connection_reset);
 			else if (value < 0)
 				return utils::get_last_error(device, value);
 
@@ -3204,18 +3197,10 @@ namespace vitex
 
 			VI_TRACE("net fd %i read %i bytes", (int)fd, (int)size);
 #ifdef VI_OPENSSL
-			if (device != nullptr)
-			{
-				int value = SSL_read(device, buffer, (int)size);
-				if (value <= 0)
-					return utils::get_last_error(device, value);
-
-				size_t received = (size_t)value;
-				income += received;
-				return received;
-			}
-#endif
+			int value = device ? SSL_read(device, buffer, (int)size) : (int)recv(fd, (char*)buffer, (int)size, 0);
+#else
 			int value = (int)recv(fd, (char*)buffer, (int)size, 0);
+#endif
 			if (value == 0)
 				return std::make_error_condition(std::errc::connection_reset);
 			else if (value < 0)
