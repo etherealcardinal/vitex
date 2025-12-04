@@ -201,7 +201,7 @@ namespace vitex
 		{
 			VI_ASSERT(id > 0 && !name.empty(), "id should be greater than zero and name should not be empty");
 
-			using map = core::unordered_map<uint64_t, std::pair<core::string, int>>;
+			using map = core::hash_map<uint64_t, std::pair<core::string, int>>;
 			if (!names)
 				names = core::memory::init<map>();
 
@@ -227,7 +227,7 @@ namespace vitex
 		{
 			core::memory::deinit(names);
 		}
-		core::unordered_map<uint64_t, std::pair<core::string, int>>* type_cache::names = nullptr;
+		core::hash_map<uint64_t, std::pair<core::string, int>>* type_cache::names = nullptr;
 
 		expects_vm<void> parser::replace_inline_preconditions(const std::string_view& keyword, core::string& data, const std::function<expects_vm<core::string>(const std::string_view& expression)>& replacer)
 		{
@@ -4443,7 +4443,7 @@ namespace vitex
 		void debugger_context::list_threads()
 		{
 #ifdef VI_ANGELSCRIPT
-			core::unordered_set<core::string> ids;
+			core::hash_set<core::string> ids;
 			core::string_stream stream;
 			size_t index = 0;
 			for (auto& item : threads)
@@ -6954,7 +6954,7 @@ namespace vitex
 
 			return it->second;
 		}
-		const core::unordered_map<core::string, core::string>& virtual_machine::get_script_sections() const
+		const core::hash_map<core::string, core::string>& virtual_machine::get_script_sections() const
 		{
 			return sections;
 		}
@@ -7392,7 +7392,7 @@ namespace vitex
 			std::string_view target_path = path.empty() ? "<anonymous>" : path;
 			VI_TRACE("asc preprocessor source code generation at %.*s (%" PRIu64 " bytes, %" PRIu64 " generators)", (int)target_path.size(), target_path.data(), (uint64_t)inout_buffer.size(), (uint64_t)generators.size());
 			{
-				core::unordered_set<core::string> applied_generators;
+				core::hash_set<core::string> applied_generators;
 				core::umutex<std::recursive_mutex> unique(sync.general);
 			retry:
 				size_t current_generators = generators.size();
@@ -7493,11 +7493,11 @@ namespace vitex
 
 			return result;
 		}
-		const core::unordered_map<core::string, virtual_machine::addon>& virtual_machine::get_system_addons() const
+		const core::hash_map<core::string, virtual_machine::addon>& virtual_machine::get_system_addons() const
 		{
 			return addons;
 		}
-		const core::unordered_map<core::string, virtual_machine::clibrary>& virtual_machine::get_clibraries() const
+		const core::hash_map<core::string, virtual_machine::clibrary>& virtual_machine::get_clibraries() const
 		{
 			return clibraries;
 		}

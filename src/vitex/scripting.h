@@ -386,7 +386,7 @@ namespace vitex
 		class type_cache : public core::singletonish
 		{
 		private:
-			static core::unordered_map<uint64_t, std::pair<core::string, int>>* names;
+			static core::hash_map<uint64_t, std::pair<core::string, int>>* names;
 
 		public:
 			static uint64_t set(uint64_t id, const std::string_view& name);
@@ -1736,10 +1736,10 @@ namespace vitex
 			};
 
 		protected:
-			core::unordered_map<const asITypeInfo*, to_string_callback> fast_to_string_callbacks;
-			core::unordered_map<core::string, to_string_type_callback> slow_to_string_callbacks;
-			core::unordered_map<core::string, command_data> commands;
-			core::unordered_map<core::string, core::string> descriptions;
+			core::hash_map<const asITypeInfo*, to_string_callback> fast_to_string_callbacks;
+			core::hash_map<core::string, to_string_type_callback> slow_to_string_callbacks;
+			core::hash_map<core::string, command_data> commands;
+			core::hash_map<core::string, core::string> descriptions;
 			core::vector<thread_data> threads;
 			core::vector<break_point> break_points;
 			std::recursive_mutex thread_barrier;
@@ -1983,7 +1983,7 @@ namespace vitex
 
 			struct clibrary
 			{
-				core::unordered_map<core::string, cfunction> functions;
+				core::hash_map<core::string, cfunction> functions;
 				void* handle;
 				bool is_addon;
 			};
@@ -2006,15 +2006,15 @@ namespace vitex
 			static int manager_ud;
 
 		private:
-			core::unordered_map<library_features, size_t> library_settings;
-			core::unordered_map<core::string, core::string> files;
-			core::unordered_map<core::string, core::string> sections;
-			core::unordered_map<core::string, core::schema*> datas;
-			core::unordered_map<core::string, byte_code_info> opcodes;
-			core::unordered_map<core::string, clibrary> clibraries;
-			core::unordered_map<core::string, addon> addons;
-			core::unordered_map<core::string, compile_callback> callbacks;
-			core::unordered_map<core::string, generator_callback> generators;
+			core::hash_map<library_features, size_t> library_settings;
+			core::hash_map<core::string, core::string> files;
+			core::hash_map<core::string, core::string> sections;
+			core::hash_map<core::string, core::schema*> datas;
+			core::hash_map<core::string, byte_code_info> opcodes;
+			core::hash_map<core::string, clibrary> clibraries;
+			core::hash_map<core::string, addon> addons;
+			core::hash_map<core::string, compile_callback> callbacks;
+			core::hash_map<core::string, generator_callback> generators;
 			core::vector<immediate_context*> threads;
 			core::vector<asIScriptContext*> stacks;
 			core::string default_namespace;
@@ -2130,8 +2130,8 @@ namespace vitex
 			debugger_context* get_debugger() const;
 			const core::string& get_module_directory() const;
 			core::vector<core::string> get_exposed_addons();
-			const core::unordered_map<core::string, addon>& get_system_addons() const;
-			const core::unordered_map<core::string, clibrary>& get_clibraries() const;
+			const core::hash_map<core::string, addon>& get_system_addons() const;
+			const core::hash_map<core::string, clibrary>& get_clibraries() const;
 			const compute::include_desc& get_compile_include_options() const;
 			bool has_library(const std::string_view& name, bool is_addon = false);
 			bool has_system_addon(const std::string_view& name);
@@ -2148,7 +2148,7 @@ namespace vitex
 			core::option<core::string> get_source_code_appendix(const std::string_view& label, const std::string_view& code, uint32_t line_number, uint32_t column_number, size_t max_lines);
 			core::option<core::string> get_source_code_appendix_by_path(const std::string_view& label, const std::string_view& path, uint32_t line_number, uint32_t column_number, size_t max_lines);
 			core::option<core::string> get_script_section(const std::string_view& section_name);
-			const core::unordered_map<core::string, core::string>& get_script_sections() const;
+			const core::hash_map<core::string, core::string>& get_script_sections() const;
 			size_t get_functions_count() const;
 			function get_function_by_id(int id) const;
 			function get_function_by_index(size_t index) const;

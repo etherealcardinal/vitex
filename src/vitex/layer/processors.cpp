@@ -246,7 +246,7 @@ namespace vitex
 					core::stringify::eval_envs(router->session.directory, base_directory, net_addresses);
 					core::stringify::eval_envs(router->temporary_directory, base_directory, net_addresses);
 
-					core::unordered_map<core::string, network::http::router_entry*> aliases;
+					core::hash_map<core::string, network::http::router_entry*> aliases;
 					core::vector<core::schema*> groups = network->find_collection("group", true);
 					for (auto&& subgroup : groups)
 					{

@@ -164,7 +164,7 @@ namespace vitex
 
 			v->set("size", core::var::integer((int64_t)value.size()));
 		}
-		void series::pack(core::schema* v, const core::unordered_map<size_t, size_t>& value)
+		void series::pack(core::schema* v, const core::hash_map<size_t, size_t>& value)
 		{
 			VI_ASSERT(v != nullptr, "schema should be set");
 			core::string_stream stream;
@@ -434,7 +434,7 @@ namespace vitex
 
 			return true;
 		}
-		bool series::unpack(core::schema* v, core::unordered_map<size_t, size_t>* o)
+		bool series::unpack(core::schema* v, core::hash_map<size_t, size_t>* o)
 		{
 			VI_ASSERT(o != nullptr, "output should be set");
 			if (!v)
@@ -1059,7 +1059,7 @@ namespace vitex
 			core::umutex<std::mutex> unique(exclusive);
 			--queue;
 		}
-		const core::unordered_map<uint64_t, processor*>& content_manager::get_processors() const
+		const core::hash_map<uint64_t, processor*>& content_manager::get_processors() const
 		{
 			return processors;
 		}

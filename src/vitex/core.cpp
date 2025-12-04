@@ -1442,7 +1442,7 @@ namespace vitex
 				}
 			}
 #ifdef VI_CXX23
-			using stack_trace_container = std::basic_stacktrace<standard_allocator<std::stacktrace_entry>>;
+			using stack_trace_container = std::basic_stacktrace<memory_allocator<std::stacktrace_entry>>;
 			stack_trace_container stack = stack_trace_container::current(skips + 2, max_depth + skips + 2);
 			frames.reserve((size_t)stack.size());
 
@@ -5990,10 +5990,10 @@ namespace vitex
 			return result;
 		}
 
-		unordered_set<uint64_t> composer::fetch(uint64_t id) noexcept
+		hash_set<uint64_t> composer::fetch(uint64_t id) noexcept
 		{
 			VI_ASSERT(context != nullptr, "composer should be initialized");
-			unordered_set<uint64_t> hashes;
+			hash_set<uint64_t> hashes;
 			for (auto& item : context->factory)
 			{
 				if (item.second.first == id)
@@ -7915,7 +7915,7 @@ namespace vitex
 		web_stream::web_stream(bool is_async) noexcept : output_stream(nullptr), offset(0), length(0), async(is_async)
 		{
 		}
-		web_stream::web_stream(bool is_async, unordered_map<string, string>&& new_headers) noexcept : web_stream(is_async)
+		web_stream::web_stream(bool is_async, hash_map<string, string>&& new_headers) noexcept : web_stream(is_async)
 		{
 			headers = std::move(new_headers);
 		}
@@ -10302,7 +10302,7 @@ namespace vitex
 #endif
 			return std::make_error_condition(std::errc::no_such_file_or_directory);
 		}
-		inline_args os::process::parse_args(int args_count, char** args, size_t opts, const unordered_set<string>& flags)
+		inline_args os::process::parse_args(int args_count, char** args, size_t opts, const hash_set<string>& flags)
 		{
 			VI_ASSERT(args != nullptr, "arguments should be set");
 			VI_ASSERT(args_count > 0, "arguments count should be greater than zero");
@@ -11723,10 +11723,10 @@ namespace vitex
 			unlink();
 			clear();
 		}
-		unordered_map<string, size_t> schema::get_names() const
+		hash_map<string, size_t> schema::get_names() const
 		{
 			size_t index = 0;
-			unordered_map<string, size_t> mapping;
+			hash_map<string, size_t> mapping;
 			generate_naming_table(this, &mapping, index);
 			return mapping;
 		}
@@ -12115,7 +12115,7 @@ namespace vitex
 		void schema::join(schema* other, bool append_only)
 		{
 			VI_ASSERT(other != nullptr && value.is_object(), "other should be object and not empty");
-			auto fill_arena = [](unordered_map<string, schema*>& nodes, schema* base)
+			auto fill_arena = [](hash_map<string, schema*>& nodes, schema* base)
 			{
 				if (!base->nodes)
 					return;
@@ -12136,7 +12136,7 @@ namespace vitex
 
 			if (!append_only)
 			{
-				unordered_map<string, schema*> subnodes;
+				hash_map<string, schema*> subnodes;
 				subnodes.reserve(nodes->capacity());
 				fill_arena(subnodes, this);
 				fill_arena(subnodes, other);
@@ -12451,7 +12451,7 @@ namespace vitex
 		void schema::convert_to_jsonb(schema* base, const schema_write_callback& callback)
 		{
 			VI_ASSERT(base != nullptr && callback, "base should be set and callback should not be empty");
-			unordered_map<string, size_t> mapping = base->get_names();
+			hash_map<string, size_t> mapping = base->get_names();
 			uint32_t set = os::hw::to_endianness(os::hw::endian::little, (uint32_t)mapping.size());
 			uint64_t version = os::hw::to_endianness<uint64_t>(os::hw::endian::little, JSONB_VERSION);
 			callback(var_form::dummy, std::string_view((const char*)&version, sizeof(uint64_t)));
@@ -12657,7 +12657,7 @@ namespace vitex
 			if (!callback((uint8_t*)&set, sizeof(uint32_t)))
 				return parser_exception(parser_error::bad_dictionary);
 
-			unordered_map<size_t, string> map;
+			hash_map<size_t, string> map;
 			set = os::hw::to_endianness(os::hw::endian::little, set);
 
 			for (uint32_t i = 0; i < set; ++i)
@@ -12712,7 +12712,7 @@ namespace vitex
 				return true;
 			});
 		}
-		expects<void, parser_exception> schema::process_convertion_from_jsonb(schema* current, unordered_map<size_t, string>* map, const schema_read_callback& callback)
+		expects<void, parser_exception> schema::process_convertion_from_jsonb(schema* current, hash_map<size_t, string>* map, const schema_read_callback& callback)
 		{
 			uint32_t id = 0;
 			if (!callback((uint8_t*)&id, sizeof(uint32_t)))
@@ -12995,7 +12995,7 @@ namespace vitex
 			}
 #endif
 		}
-		void schema::process_convertion_to_jsonb(schema* current, unordered_map<string, size_t>* map, const schema_write_callback& callback)
+		void schema::process_convertion_to_jsonb(schema* current, hash_map<string, size_t>* map, const schema_write_callback& callback)
 		{
 			uint32_t id = os::hw::to_endianness(os::hw::endian::little, current->key.empty() ? (uint32_t)-1 : (uint32_t)map->at(current->key));
 			callback(var_form::dummy, std::string_view((const char*)&id, sizeof(uint32_t)));
@@ -13052,7 +13052,7 @@ namespace vitex
 					break;
 			}
 		}
-		void schema::generate_naming_table(const schema* current, unordered_map<string, size_t>* map, size_t& index)
+		void schema::generate_naming_table(const schema* current, hash_map<string, size_t>* map, size_t& index)
 		{
 			if (!current->key.empty())
 			{

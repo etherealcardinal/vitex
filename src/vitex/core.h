@@ -7,12 +7,13 @@
 #include <inttypes.h>
 #include <limits>
 #include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include <charconv>
 #include <cstring>
@@ -517,22 +518,30 @@ namespace vitex
 		};
 
 		template <typename t>
-		class standard_allocator
+		struct memory_allocator
 		{
-		public:
-			typedef t value_type;
+			using value_type = t;
+			using pointer = t*;
+			using const_pointer = const t*;
+			using reference = t&;
+			using const_reference = const t&;
+			using size_type = std::size_t;
+			using difference_type = std::ptrdiff_t;
+			using allocator_type = memory_allocator<t>;
 
-		public:
 			template <typename u>
 			struct rebind
 			{
-				typedef standard_allocator<u> other;
+				using other = memory_allocator<u>;
 			};
 
-		public:
-			standard_allocator() = default;
-			~standard_allocator() = default;
-			standard_allocator(const standard_allocator&) = default;
+			memory_allocator() = default;
+			~memory_allocator() = default;
+			memory_allocator(const memory_allocator&) = default;
+			template <typename u>
+			memory_allocator(const memory_allocator<u>&)
+			{
+			}
 			value_type* allocate(size_t count)
 			{
 				return memory::allocate<t>(count * sizeof(t));
@@ -549,37 +558,26 @@ namespace vitex
 			{
 				return std::numeric_limits<size_t>::max() / sizeof(t);
 			}
-			bool operator== (const standard_allocator&)
+			bool operator== (const memory_allocator&)
 			{
 				return true;
 			}
-			bool operator!=(const standard_allocator&)
+			bool operator!=(const memory_allocator&)
 			{
 				return false;
-			}
-
-		public:
-			template <typename u>
-			standard_allocator(const standard_allocator<u>&)
-			{
 			}
 		};
 
 		template <class a, class b>
-		bool operator== (const standard_allocator<a>&, const standard_allocator<b>&) noexcept
+		bool operator== (const memory_allocator<a>&, const memory_allocator<b>&) noexcept
 		{
 			return true;
 		}
-
-		template <typename t>
-		struct allocation_type
+		template <class a, class b>
+		bool operator!= (const memory_allocator<a>&, const memory_allocator<b>&) noexcept
 		{
-#ifdef VI_ALLOCATOR
-			using type = standard_allocator<t>;
-#else
-			using type = std::allocator<t>;
-#endif
-		};
+			return false;
+		}
 
 		template <typename t, t offset_basis, t prime>
 		struct fnv1a_hash
@@ -609,7 +607,7 @@ namespace vitex
 		using FNV1A = typename fnv1a_bits<bits>::type;
 
 		template <typename t>
-		struct key_hasher
+		struct key_hash
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -632,12 +630,17 @@ namespace vitex
 				return std::equal_to<t>()(left, right);
 			}
 		};
-
-		using string = std::basic_string<std::string::value_type, std::string::traits_type, typename allocation_type<typename std::string::value_type>::type>;
-		using wide_string = std::basic_string<std::wstring::value_type, std::wstring::traits_type, typename allocation_type<typename std::wstring::value_type>::type>;
-		using string_stream = std::basic_stringstream<std::string::value_type, std::string::traits_type, typename allocation_type<typename std::string::value_type>::type>;
-		using wide_string_stream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, typename allocation_type<typename std::wstring::value_type>::type>;
-
+#ifdef VI_ALLOCATOR
+		using string = std::basic_string<std::string::value_type, std::string::traits_type, memory_allocator<std::string::value_type>>;
+		using wide_string = std::basic_string<std::wstring::value_type, std::wstring::traits_type, memory_allocator<std::wstring::value_type>>;
+		using string_stream = std::basic_stringstream<std::string::value_type, std::string::traits_type, memory_allocator<std::string::value_type>>;
+		using wide_string_stream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type, memory_allocator<std::wstring::value_type>>;
+#else
+		using string = std::basic_string<std::string::value_type, std::string::traits_type>;
+		using wide_string = std::basic_string<std::wstring::value_type, std::wstring::traits_type>;
+		using string_stream = std::basic_stringstream<std::string::value_type, std::string::traits_type>;
+		using wide_string_stream = std::basic_stringstream<std::wstring::value_type, std::wstring::traits_type>;
+#endif
 		template <>
 		struct equal_to<string>
 		{
@@ -669,7 +672,7 @@ namespace vitex
 		};
 
 		template <>
-		struct key_hasher<string>
+		struct key_hash<string>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -690,7 +693,7 @@ namespace vitex
 		};
 
 		template <>
-		struct key_hasher<wide_string>
+		struct key_hash<wide_string>
 		{
 			typedef float argument_type;
 			typedef size_t result_type;
@@ -704,31 +707,61 @@ namespace vitex
 				return FNV1A<8 * sizeof(std::size_t)>()(value.data(), value.size());
 			}
 		};
+#ifdef VI_ALLOCATOR
+		template <typename t>
+		using vector = std::vector<t, memory_allocator<t>>;
 
 		template <typename t>
-		using vector = std::vector<t, typename allocation_type<t>::type>;
+		using linked_list = std::list<t, memory_allocator<t>>;
 
 		template <typename t>
-		using linked_list = std::list<t, typename allocation_type<t>::type>;
+		using double_queue = std::deque<t, memory_allocator<t>>;
 
 		template <typename t>
-		using single_queue = std::queue<t, std::deque<t, typename allocation_type<t>::type>>;
+		using single_queue = std::queue<t, double_queue<t>>;
 
-		template <typename t>
-		using double_queue = std::deque<t, typename allocation_type<t>::type>;
+		template <typename k, typename comparator = typename std::set<k>::key_compare>
+		using btree_set = std::set<k, comparator, memory_allocator<k>>;
 
 		template <typename k, typename v, typename comparator = typename std::map<k, v>::key_compare>
-		using ordered_map = std::map<k, v, comparator, typename allocation_type<typename std::map<k, v>::value_type>::type>;
+		using btree_map = std::map<k, v, comparator, memory_allocator<std::pair<const k, v>>>;
 
-		template <typename k, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
-		using unordered_set = std::unordered_set<k, hash, key_equal, typename allocation_type<typename std::unordered_set<k>::value_type>::type>;
+		template <typename k, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using hash_set = std::unordered_set<k, hash_type, equal_to_type, memory_allocator<k>>;
 
-		template <typename k, typename v, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
-		using unordered_map = std::unordered_map<k, v, hash, key_equal, typename allocation_type<typename std::unordered_map<k, v>::value_type>::type>;
+		template <typename k, typename v, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using hash_map = std::unordered_map<k, v, hash_type, equal_to_type, memory_allocator<std::pair<const k, v>>>;
 
-		template <typename k, typename v, typename hash = key_hasher<k>, typename key_equal = equal_to<k>>
-		using unordered_multi_map = std::unordered_multimap<k, v, hash, key_equal, typename allocation_type<typename std::unordered_multimap<k, v>::value_type>::type>;
+		template <typename k, typename v, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using multi_hash_map = std::unordered_multimap<k, v, hash_type, equal_to_type, memory_allocator<std::pair<const k, v>>>;
+#else
+		template <typename t>
+		using vector = std::vector<t>;
 
+		template <typename t>
+		using linked_list = std::list<t>;
+
+		template <typename t>
+		using double_queue = std::deque<t>;
+
+		template <typename t>
+		using single_queue = std::queue<t>;
+
+		template <typename k, typename comparator = typename std::set<k>::key_compare>
+		using btree_set = std::set<k, comparator>;
+
+		template <typename k, typename v, typename comparator = typename std::map<k, v>::key_compare>
+		using btree_map = std::map<k, v, comparator>;
+
+		template <typename k, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using hash_set = std::unordered_set<k, hash_type, equal_to_type>;
+
+		template <typename k, typename v, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using hash_map = std::unordered_map<k, v, hash_type, equal_to_type>;
+
+		template <typename k, typename v, typename hash_type = key_hash<k>, typename equal_to_type = equal_to<k>>
+		using multi_hash_map = std::unordered_multimap<k, v, hash_type, equal_to_type>;
+#endif
 		typedef std::function<void()> task_callback;
 		typedef std::function<bool(const std::string_view&)> process_callback;
 		typedef std::function<string(const std::string_view&)> schema_name_callback;
@@ -2167,7 +2200,7 @@ namespace vitex
 		};
 
 		typedef vector<variant> variant_list;
-		typedef unordered_map<string, variant> variant_args;
+		typedef hash_map<string, variant> variant_args;
 
 		struct text_settle
 		{
@@ -2395,7 +2428,7 @@ namespace vitex
 
 		struct concurrent_timeout_queue
 		{
-			ordered_map<std::chrono::microseconds, timeout> queue;
+			btree_map<std::chrono::microseconds, timeout> queue;
 			std::condition_variable notify;
 			std::mutex update;
 			bool resync = true;
@@ -2404,7 +2437,7 @@ namespace vitex
 		struct inline_args
 		{
 		public:
-			unordered_map<string, string> args;
+			hash_map<string, string> args;
 			vector<string> params;
 			string path;
 
@@ -2635,7 +2668,7 @@ namespace vitex
 				static expects_io<string> get_env(const std::string_view& name);
 				static expects_io<string> get_shell();
 				static string get_thread_id(const std::thread::id& id);
-				static inline_args parse_args(int argc, char** argv, size_t format_opts, const unordered_set<string>& flags = { });
+				static inline_args parse_args(int argc, char** argv, size_t format_opts, const hash_set<string>& flags = { });
 			};
 
 			class symbol
@@ -2678,7 +2711,7 @@ namespace vitex
 		private:
 			struct state
 			{
-				unordered_map<uint64_t, std::pair<uint64_t, void*>> factory;
+				hash_map<uint64_t, std::pair<uint64_t, void*>> factory;
 				std::mutex mutex;
 			};
 
@@ -2686,7 +2719,7 @@ namespace vitex
 			static state* context;
 
 		public:
-			static unordered_set<uint64_t> fetch(uint64_t id) noexcept;
+			static hash_set<uint64_t> fetch(uint64_t id) noexcept;
 			static bool pop(const std::string_view& hash) noexcept;
 			static void cleanup() noexcept;
 
@@ -3283,8 +3316,8 @@ namespace vitex
 
 			struct
 			{
-				unordered_map<uint64_t, element_state> elements;
-				unordered_map<uint64_t, window_state> windows;
+				hash_map<uint64_t, element_state> elements;
+				hash_map<uint64_t, window_state> windows;
 				std::recursive_mutex session;
 				unsigned short attributes = 0;
 				mode status = mode::detached;
@@ -3551,7 +3584,7 @@ namespace vitex
 		class web_stream final : public stream
 		{
 		protected:
-			unordered_map<string, string> headers;
+			hash_map<string, string> headers;
 			vector<char> chunk;
 			void* output_stream;
 			size_t offset;
@@ -3560,7 +3593,7 @@ namespace vitex
 
 		public:
 			web_stream(bool is_async) noexcept;
-			web_stream(bool is_async, unordered_map<string, string>&& new_headers) noexcept;
+			web_stream(bool is_async, hash_map<string, string>&& new_headers) noexcept;
 			~web_stream() noexcept override;
 			expects_io<void> clear() override;
 			expects_io<void> open(const std::string_view& file, file_mode mode) override;
@@ -3644,8 +3677,8 @@ namespace vitex
 			friend cocontext;
 
 		private:
-			unordered_set<coroutine*> cached;
-			unordered_set<coroutine*> used;
+			hash_set<coroutine*> cached;
+			hash_set<coroutine*> used;
 			std::thread::id thread;
 			coroutine* current;
 			cocontext* master;
@@ -3706,7 +3739,7 @@ namespace vitex
 			schema(const variant& base) noexcept;
 			schema(variant&& base) noexcept;
 			~schema() noexcept;
-			unordered_map<string, size_t> get_names() const;
+			hash_map<string, size_t> get_names() const;
 			vector<schema*> find_collection(const std::string_view& name, bool deep = false) const;
 			vector<schema*> fetch_collection(const std::string_view& notation, bool deep = false) const;
 			vector<schema*> get_attributes() const;
@@ -3768,12 +3801,12 @@ namespace vitex
 			static expects_parser<schema*> from_jsonb(const std::string_view& binary);
 
 		private:
-			static expects_parser<void> process_convertion_from_jsonb(schema* current, unordered_map<size_t, string>* map, const schema_read_callback& callback);
+			static expects_parser<void> process_convertion_from_jsonb(schema* current, hash_map<size_t, string>* map, const schema_read_callback& callback);
 			static schema* process_conversion_from_json_string_or_number(void* base, bool is_document);
 			static void process_convertion_from_xml(void* base, schema* current);
 			static void process_convertion_from_json(void* base, schema* current);
-			static void process_convertion_to_jsonb(schema* current, unordered_map<string, size_t>* map, const schema_write_callback& callback);
-			static void generate_naming_table(const schema* current, unordered_map<string, size_t>* map, size_t& index);
+			static void process_convertion_to_jsonb(schema* current, hash_map<string, size_t>* map, const schema_write_callback& callback);
+			static void generate_naming_table(const schema* current, hash_map<string, size_t>* map, size_t& index);
 		};
 
 		class schedule final : public singleton<schedule>
@@ -3918,7 +3951,7 @@ namespace vitex
 		};
 
 		typedef vector<uptr<schema>> schema_list;
-		typedef unordered_map<string, uptr<schema>> schema_args;
+		typedef hash_map<string, uptr<schema>> schema_args;
 
 		template <>
 		class ualloc<schedule>

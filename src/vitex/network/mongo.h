@@ -562,8 +562,8 @@ namespace vitex
 				};
 
 			private:
-				core::unordered_map<core::string, sequence> queries;
-				core::unordered_map<core::string, core::string> constants;
+				core::hash_map<core::string, sequence> queries;
+				core::hash_map<core::string, core::string> constants;
 				std::mutex exclusive;
 				on_query_log logger;
 				void* APM;

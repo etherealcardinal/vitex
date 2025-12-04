@@ -215,7 +215,7 @@ namespace vitex
 			class address
 			{
 			private:
-				core::unordered_map<core::string, core::string> params;
+				core::hash_map<core::string, core::string> params;
 
 			public:
 				address();
@@ -223,7 +223,7 @@ namespace vitex
 				bool set(address_op key, const std::string_view& value);
 				core::string get(address_op key) const;
 				core::string get_address() const;
-				const core::unordered_map<core::string, core::string>& get() const;
+				const core::hash_map<core::string, core::string>& get() const;
 				const char** create_keys() const;
 				const char** create_values() const;
 
@@ -468,7 +468,7 @@ namespace vitex
 				friend cluster;
 
 			private:
-				core::unordered_set<core::string> listens;
+				core::hash_set<core::string> listens;
 				tconnection* base;
 				socket* stream;
 				request* current;
@@ -524,7 +524,7 @@ namespace vitex
 			private:
 				struct
 				{
-					core::unordered_map<core::string, std::pair<int64_t, cursor>> objects;
+					core::hash_map<core::string, std::pair<int64_t, cursor>> objects;
 					std::mutex context;
 					uint64_t short_duration = 10;
 					uint64_t mid_duration = 30;
@@ -534,8 +534,8 @@ namespace vitex
 				} cache;
 
 			private:
-				core::unordered_map<core::string, core::unordered_map<uint64_t, on_notification>> listeners;
-				core::unordered_map<socket*, connection*> pool;
+				core::hash_map<core::string, core::hash_map<uint64_t, on_notification>> listeners;
+				core::hash_map<socket*, connection*> pool;
 				core::vector<request*> requests;
 				std::atomic<uint64_t> channel;
 				std::atomic<uint64_t> counter;
@@ -585,7 +585,7 @@ namespace vitex
 			{
 			public:
 				static expects_db<core::string> inline_array(cluster* client, core::uptr<core::schema>&& array);
-				static expects_db<core::string> inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
+				static expects_db<core::string> inline_query(cluster* client, core::uptr<core::schema>&& where, const core::hash_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
 				static core::string get_char_array(connection* base, const std::string_view& src) noexcept;
 				static core::string get_byte_array(connection* base, const std::string_view& src) noexcept;
 				static core::string get_sql(connection* base, core::schema* source, bool escape, bool negate) noexcept;
@@ -610,8 +610,8 @@ namespace vitex
 				};
 
 			private:
-				core::unordered_map<core::string, sequence> queries;
-				core::unordered_map<core::string, core::string> constants;
+				core::hash_map<core::string, sequence> queries;
+				core::hash_map<core::string, core::string> constants;
 				std::mutex exclusive;
 				std::atomic<bool> active;
 				on_query_log logger;

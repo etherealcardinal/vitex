@@ -96,7 +96,7 @@ namespace vitex
 		struct location
 		{
 		public:
-			core::unordered_map<core::string, core::string> query;
+			core::hash_map<core::string, core::string> query;
 			core::string protocol;
 			core::string username;
 			core::string password;
@@ -134,7 +134,7 @@ namespace vitex
 
 		struct certificate
 		{
-			core::unordered_map<core::string, core::string> extensions;
+			core::hash_map<core::string, core::string> extensions;
 			core::string subject_name;
 			core::string issuer_name;
 			core::string serial_number;
@@ -148,7 +148,7 @@ namespace vitex
 			int32_t signature = 0;
 			x509_blob blob = x509_blob(nullptr);
 
-			core::unordered_map<core::string, core::vector<core::string>> get_full_extensions() const;
+			core::hash_map<core::string, core::vector<core::string>> get_full_extensions() const;
 		};
 
 		struct data_frame
@@ -364,8 +364,8 @@ namespace vitex
 		{
 		private:
 			std::mutex exclusive;
-			core::unordered_set<ssl_ctx_st*> servers;
-			core::unordered_set<ssl_ctx_st*> clients;
+			core::hash_set<ssl_ctx_st*> servers;
+			core::hash_set<ssl_ctx_st*> clients;
 			bool is_installed;
 
 		public:
@@ -384,7 +384,7 @@ namespace vitex
 		{
 		private:
 			std::mutex exclusive;
-			core::unordered_map<size_t, std::pair<int64_t, socket_address>> names;
+			core::hash_map<size_t, std::pair<int64_t, socket_address>> names;
 
 		public:
 			dns() noexcept;
@@ -401,9 +401,9 @@ namespace vitex
 		{
 		private:
 			std::mutex exclusive;
-			core::unordered_set<socket*> trackers;
+			core::hash_set<socket*> trackers;
 			core::vector<epoll_fd> fds;
-			core::ordered_map<std::chrono::microseconds, socket*> timers;
+			core::btree_map<std::chrono::microseconds, socket*> timers;
 			epoll_interface handle;
 			std::atomic<size_t> activations;
 			uint64_t default_timeout;
@@ -445,13 +445,13 @@ namespace vitex
 			struct connection_queue
 			{
 				core::single_queue<acquire_callback> requests;
-				core::unordered_set<socket*> streams;
+				core::hash_set<socket*> streams;
 				size_t duplicates = 0;
 			};
 
 		private:
 			std::recursive_mutex exclusive;
-			core::unordered_map<core::string, connection_queue> connections;
+			core::hash_map<core::string, connection_queue> connections;
 			size_t max_duplicates;
 
 		public:
@@ -608,8 +608,8 @@ namespace vitex
 		class socket_router : public core::reference<socket_router>
 		{
 		public:
-			core::unordered_map<core::string, socket_certificate> certificates;
-			core::unordered_map<core::string, router_listener> listeners;
+			core::hash_map<core::string, socket_certificate> certificates;
+			core::hash_map<core::string, router_listener> listeners;
 			size_t max_heap_buffer = 1024 * 1024 * 4;
 			size_t max_net_buffer = 1024 * 1024 * 32;
 			size_t backlog_queue = 20;
@@ -651,8 +651,8 @@ namespace vitex
 
 		protected:
 			std::recursive_mutex exclusive;
-			core::unordered_set<socket_connection*> active;
-			core::unordered_set<socket_connection*> inactive;
+			core::hash_set<socket_connection*> active;
+			core::hash_set<socket_connection*> inactive;
 			core::vector<socket_listener*> listeners;
 			socket_router* router;
 			uint64_t shutdown_timeout;
@@ -672,8 +672,8 @@ namespace vitex
 			uint64_t get_shutdown_timeout() const;
 			server_state get_state() const;
 			socket_router* get_router();
-			const core::unordered_set<socket_connection*>& get_active_clients();
-			const core::unordered_set<socket_connection*>& get_pooled_clients();
+			const core::hash_set<socket_connection*>& get_active_clients();
+			const core::hash_set<socket_connection*>& get_pooled_clients();
 			const core::vector<socket_listener*>& get_listeners();
 
 		protected:

@@ -31,7 +31,7 @@ namespace vitex
 
 			struct request_frame
 			{
-				core::unordered_map<core::string, core::string> headers;
+				core::hash_map<core::string, core::string> headers;
 				core::vector<recipient> recipients;
 				core::vector<recipient> cc_recipients;
 				core::vector<recipient> bcc_recipients;

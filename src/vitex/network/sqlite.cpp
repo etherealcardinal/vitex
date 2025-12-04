@@ -1640,7 +1640,7 @@ namespace vitex
 
 				return result;
 			}
-			expects_db<core::string> utils::inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value)
+			expects_db<core::string> utils::inline_query(core::uptr<core::schema>&& where, const core::hash_map<core::string, core::string>& whitelist, const std::string_view& default_value)
 			{
 				VI_ASSERT(where, "array should be set");
 				core::schema_list map;

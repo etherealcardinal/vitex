@@ -332,7 +332,7 @@ namespace vitex
 				friend driver;
 
 			private:
-				core::unordered_map<core::string, tstatement*> statements;
+				core::hash_map<core::string, tstatement*> statements;
 				core::vector<on_function_result*> functions;
 				core::vector<aggregate*> aggregates;
 				core::vector<window*> windows;
@@ -399,9 +399,9 @@ namespace vitex
 				};
 
 			private:
-				core::unordered_map<tconnection*, core::single_queue<request>> queues;
-				core::unordered_set<tconnection*> idle;
-				core::unordered_set<tconnection*> busy;
+				core::hash_map<tconnection*, core::single_queue<request>> queues;
+				core::hash_set<tconnection*> idle;
+				core::hash_set<tconnection*> busy;
 				core::vector<on_function_result*> functions;
 				core::vector<aggregate*> aggregates;
 				core::vector<window*> windows;
@@ -453,7 +453,7 @@ namespace vitex
 			{
 			public:
 				static expects_db<core::string> inline_array(core::uptr<core::schema>&& array);
-				static expects_db<core::string> inline_query(core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
+				static expects_db<core::string> inline_query(core::uptr<core::schema>&& where, const core::hash_map<core::string, core::string>& whitelist, const std::string_view& default_value = "TRUE");
 				static core::string get_char_array(const std::string_view& src) noexcept;
 				static core::string get_byte_array(const std::string_view& src) noexcept;
 				static core::string get_sql(core::schema* source, bool escape, bool negate) noexcept;
@@ -481,8 +481,8 @@ namespace vitex
 				};
 
 			private:
-				core::unordered_map<core::string, sequence> queries;
-				core::unordered_map<core::string, core::string> constants;
+				core::hash_map<core::string, sequence> queries;
+				core::hash_map<core::string, core::string> constants;
 				std::mutex exclusive;
 				std::atomic<bool> active;
 				on_query_log logger;

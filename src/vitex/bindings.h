@@ -126,7 +126,7 @@ namespace vitex
 
 				struct tag_directive
 				{
-					core::unordered_map<core::string, core::string> args;
+					core::hash_map<core::string, core::string> args;
 					core::string name;
 				};
 
@@ -375,7 +375,7 @@ namespace vitex
 			class string
 			{
 			public:
-				typedef vitex::core::unordered_map<vitex::core::string, std::atomic<int32_t>> factory_context;
+				typedef vitex::core::hash_map<vitex::core::string, std::atomic<int32_t>> factory_context;
 
 			public:
 				static std::string_view impl_cast_string_view(core::string& base);
@@ -775,7 +775,7 @@ namespace vitex
 			class dictionary : public core::reference<dictionary>
 			{
 			public:
-				typedef core::unordered_map<core::string, storable> internal_map;
+				typedef core::hash_map<core::string, storable> internal_map;
 
 			public:
 				class local_iterator
@@ -866,7 +866,7 @@ namespace vitex
 
 			public:
 				template <typename t>
-				static dictionary* compose(int type_id, const core::unordered_map<core::string, t>& objects)
+				static dictionary* compose(int type_id, const core::hash_map<core::string, t>& objects)
 				{
 					auto* engine = virtual_machine::get();
 					dictionary* data = create(engine);
@@ -876,9 +876,9 @@ namespace vitex
 					return data;
 				}
 				template <typename t>
-				static typename std::enable_if<std::is_pointer<t>::value, core::unordered_map<core::string, t>>::type decompose(int type_id, dictionary* array)
+				static typename std::enable_if<std::is_pointer<t>::value, core::hash_map<core::string, t>>::type decompose(int type_id, dictionary* array)
 				{
-					core::unordered_map<core::string, t> result;
+					core::hash_map<core::string, t> result;
 					result.reserve(array->size());
 
 					int sub_type_id = 0;
@@ -893,9 +893,9 @@ namespace vitex
 					return result;
 				}
 				template <typename t>
-				static typename std::enable_if<!std::is_pointer<t>::value, core::unordered_map<core::string, t>>::type decompose(int type_id, dictionary* array)
+				static typename std::enable_if<!std::is_pointer<t>::value, core::hash_map<core::string, t>>::type decompose(int type_id, dictionary* array)
 				{
-					core::unordered_map<core::string, t> result;
+					core::hash_map<core::string, t> result;
 					result.reserve(array->size());
 
 					int sub_type_id = 0;

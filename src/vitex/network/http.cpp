@@ -79,7 +79,7 @@ namespace vitex
 			{
 				return core::string(array.data() + offset, size);
 			}
-			static std::string_view header_text(const kimv_unordered_map& headers, const std::string_view& key)
+			static std::string_view header_text(const kimv_hash_map& headers, const std::string_view& key)
 			{
 				VI_ASSERT(!key.empty(), "key should not be empty");
 				auto it = headers.find(core::key_lookup_cast(key));
@@ -147,7 +147,7 @@ namespace vitex
 				append_text(" GMT\0", 5);
 				return std::string_view(buffer, size - 1);
 			}
-			static void cleanup_hash_map(kimv_unordered_map& map)
+			static void cleanup_hash_map(kimv_hash_map& map)
 			{
 				if (map.size() <= HTTP_KIMV_LOAD_FACTOR)
 				{
@@ -1282,7 +1282,7 @@ namespace vitex
 			{
 				text_assign(data, text);
 			}
-			void content_frame::prepare(const kimv_unordered_map& headers, const uint8_t* buffer, size_t size)
+			void content_frame::prepare(const kimv_hash_map& headers, const uint8_t* buffer, size_t size)
 			{
 				auto content_length = header_text(headers, "Content-Length");
 				limited = !content_length.empty();
@@ -4286,7 +4286,7 @@ namespace vitex
 				VI_ASSERT(request != nullptr, "connection should be set");
 				VI_ASSERT(response != nullptr, "response should be set");
 
-				kimv_unordered_map& headers = (is_request ? request->headers : response->headers);
+				kimv_hash_map& headers = (is_request ? request->headers : response->headers);
 				for (auto& item : headers)
 				{
 					for (auto& payload : item.second)

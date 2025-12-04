@@ -422,7 +422,7 @@ namespace vitex
 
 				return "postgresql://" + hostname + ':' + get(address_op::port) + '/';
 			}
-			const core::unordered_map<core::string, core::string>& address::get() const
+			const core::hash_map<core::string, core::string>& address::get() const
 			{
 				return params;
 			}
@@ -1686,7 +1686,7 @@ namespace vitex
 					const char** keys = source.create_keys();
 					const char** values = source.create_values();
 					core::umutex<std::recursive_mutex> unique(update);
-					core::unordered_map<socket_t, tconnection*> queue;
+					core::hash_map<socket_t, tconnection*> queue;
 					core::vector<network::utils::poll_fd> sockets;
 					tconnection* error = nullptr;
 
@@ -1856,7 +1856,7 @@ namespace vitex
 			expects_promise_db<void> cluster::unlisten(const core::vector<core::string>& channels)
 			{
 				VI_ASSERT(!channels.empty(), "channels should not be empty");
-				core::unordered_map<connection*, core::string> commands;
+				core::hash_map<connection*, core::string> commands;
 				{
 					core::umutex<std::recursive_mutex> unique(update);
 					for (auto& item : channels)
@@ -2312,7 +2312,7 @@ namespace vitex
 
 				return result;
 			}
-			expects_db<core::string> utils::inline_query(cluster* client, core::uptr<core::schema>&& where, const core::unordered_map<core::string, core::string>& whitelist, const std::string_view& default_value)
+			expects_db<core::string> utils::inline_query(cluster* client, core::uptr<core::schema>&& where, const core::hash_map<core::string, core::string>& whitelist, const std::string_view& default_value)
 			{
 				VI_ASSERT(client != nullptr, "cluster should be set");
 				VI_ASSERT(where, "array should be set");

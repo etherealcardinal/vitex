@@ -1795,10 +1795,10 @@ namespace vitex
 			} this_file;
 
 		private:
-			core::unordered_map<core::string, std::pair<condition, controller>> control_flow;
-			core::unordered_map<core::string, proc_directive_callback> directives;
-			core::unordered_map<core::string, definition> defines;
-			core::unordered_set<core::string> sets;
+			core::hash_map<core::string, std::pair<condition, controller>> control_flow;
+			core::hash_map<core::string, proc_directive_callback> directives;
+			core::hash_map<core::string, definition> defines;
+			core::hash_set<core::string> sets;
 			std::function<size_t()> store_current_line;
 			proc_include_callback include;
 			proc_pragma_callback pragma;

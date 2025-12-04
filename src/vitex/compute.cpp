@@ -7212,7 +7212,7 @@ namespace vitex
 		void codec::rotate_buffer(uint8_t* buffer, size_t buffer_size, uint64_t hash, int8_t direction)
 		{
 			core::string partition;
-			core::key_hasher<core::string> hasher;
+			core::key_hash<core::string> hasher;
 			partition.reserve(buffer_size);
 
 			constexpr uint8_t limit = std::numeric_limits<uint8_t>::max() - 1;

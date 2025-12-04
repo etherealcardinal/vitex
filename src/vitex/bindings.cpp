@@ -4004,7 +4004,7 @@ namespace vitex
 				if (!vm)
 					return nullptr;
 
-				core::unordered_map<core::string, size_t> mapping = base->get_names();
+				core::hash_map<core::string, size_t> mapping = base->get_names();
 				dictionary* map = dictionary::create(vm);
 
 				for (auto& item : mapping)
@@ -5260,7 +5260,7 @@ namespace vitex
 			}
 			core::inline_args os_process_parse_args(array* args_array, size_t opts, array* flags_array)
 			{
-				core::unordered_set<core::string> flags;
+				core::hash_set<core::string> flags;
 				core::vector<core::string> inline_flags = array::decompose<core::string>(args_array);
 				flags.reserve(inline_flags.size());
 
@@ -7360,7 +7360,7 @@ namespace vitex
 			{
 				virtual_machine* vm = virtual_machine::get();
 				int type_id = vm ? vm->get_type_id_by_decl("string") : -1;
-				core::unordered_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
+				core::hash_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
 				return expects_wrapper::unwrap(network::sqlite::utils::inline_query(where, whitelist, default_value), core::string());
 			}
 
@@ -7644,7 +7644,7 @@ namespace vitex
 			{
 				virtual_machine* vm = virtual_machine::get();
 				int type_id = vm ? vm->get_type_id_by_decl("string") : -1;
-				core::unordered_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
+				core::hash_map<core::string, core::string> whitelist = dictionary::decompose<core::string>(type_id, whitelist_data);
 				return expects_wrapper::unwrap(network::pq::utils::inline_query(client, where, whitelist, default_value), core::string());
 			}
 

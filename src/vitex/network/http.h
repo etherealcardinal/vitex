@@ -115,7 +115,7 @@ namespace vitex
 				}
 			};
 
-			struct kimv_key_hasher
+			struct kimv_key_hash
 			{
 				typedef float argument_type;
 				typedef size_t result_type;
@@ -135,7 +135,7 @@ namespace vitex
 				}
 			};
 
-			typedef core::unordered_map<core::string, core::vector<core::string>, kimv_key_hasher, kimv_equal_to> kimv_unordered_map;
+			typedef core::hash_map<core::string, core::vector<core::string>, kimv_key_hash, kimv_equal_to> kimv_hash_map;
 			typedef std::function<bool(class connection*)> success_callback;
 			typedef std::function<void(class connection*, socket_poll)> headers_callback;
 			typedef std::function<bool(class connection*, socket_poll, const std::string_view&)> content_callback;
@@ -191,7 +191,7 @@ namespace vitex
 
 			struct resource
 			{
-				kimv_unordered_map headers;
+				kimv_hash_map headers;
 				core::string path;
 				core::string type;
 				core::string name;
@@ -240,7 +240,7 @@ namespace vitex
 				content_frame& operator= (content_frame&&) noexcept = default;
 				void append(const std::string_view& data);
 				void assign(const std::string_view& data);
-				void prepare(const kimv_unordered_map& headers, const uint8_t* buffer, size_t size);
+				void prepare(const kimv_hash_map& headers, const uint8_t* buffer, size_t size);
 				void finalize();
 				void cleanup();
 				core::expects_parser<core::schema*> get_json() const;
@@ -252,8 +252,8 @@ namespace vitex
 			struct request_frame
 			{
 				content_frame content;
-				kimv_unordered_map cookies;
-				kimv_unordered_map headers;
+				kimv_hash_map cookies;
+				kimv_hash_map headers;
 				compute::regex_result match;
 				credentials user;
 				core::string query;
@@ -287,7 +287,7 @@ namespace vitex
 			struct response_frame
 			{
 				content_frame content;
-				kimv_unordered_map headers;
+				kimv_hash_map headers;
 				core::vector<cookie> cookies;
 				int status_code;
 				bool error;
@@ -314,8 +314,8 @@ namespace vitex
 			struct fetch_frame
 			{
 				content_frame content;
-				kimv_unordered_map cookies;
-				kimv_unordered_map headers;
+				kimv_hash_map cookies;
+				kimv_hash_map headers;
 				uint64_t timeout;
 				size_t max_size;
 				uint32_t verify_peers;
@@ -691,8 +691,8 @@ namespace vitex
 					int* status_code = nullptr;
 					core::string* location = nullptr;
 					core::string* query = nullptr;
-					kimv_unordered_map* cookies = nullptr;
-					kimv_unordered_map* headers = nullptr;
+					kimv_hash_map* cookies = nullptr;
+					kimv_hash_map* headers = nullptr;
 					content_frame* content = nullptr;
 				} message;
 

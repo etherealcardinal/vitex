@@ -166,7 +166,7 @@ namespace vitex
 
 			return true;
 		}
-		static addrinfo* try_connect_dns(const core::unordered_map<socket_t, addrinfo*>& hosts, uint64_t timeout)
+		static addrinfo* try_connect_dns(const core::hash_map<socket_t, addrinfo*>& hosts, uint64_t timeout)
 		{
 			VI_MEASURE(core::timings::networking);
 
@@ -239,7 +239,7 @@ namespace vitex
 
 		struct epoll_queue
 		{
-			core::unordered_map<socket_t, epoll_descriptor> fds;
+			core::hash_map<socket_t, epoll_descriptor> fds;
 			core::vector<pollfd> events;
 			std::mutex mutex;
 			std::atomic<uint8_t> iteration;
@@ -681,9 +681,9 @@ namespace vitex
 			return *this;
 		}
 
-		core::unordered_map<core::string, core::vector<core::string>> certificate::get_full_extensions() const
+		core::hash_map<core::string, core::vector<core::string>> certificate::get_full_extensions() const
 		{
-			core::unordered_map<core::string, core::vector<core::string>> data;
+			core::hash_map<core::string, core::vector<core::string>> data;
 			data.reserve(extensions.size());
 
 			for (auto& item : extensions)
@@ -1862,7 +1862,7 @@ namespace vitex
 			memcpy(buffer + sizeof(uint32_t) * 3, service.data(), service_size);
 			memcpy(buffer + sizeof(uint32_t) * 3 + service_size, hostname.data(), hostname_size);
 
-			core::key_hasher<core::string> hasher;
+			core::key_hash<core::string> hasher;
 			size_t hash = hasher(std::string_view(buffer, header_size + service_size + hostname_size));
 			{
 				core::umutex<std::mutex> unique(exclusive);
@@ -1876,7 +1876,7 @@ namespace vitex
 				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
 
 			struct addrinfo* target_address = nullptr;
-			core::unordered_map<socket_t, addrinfo*> hosts;
+			core::hash_map<socket_t, addrinfo*> hosts;
 			for (auto it = addresses; it != nullptr; it = it->ai_next)
 			{
 				auto connectable = execute_socket(it->ai_family, it->ai_socktype, it->ai_protocol);
@@ -1977,8 +1977,8 @@ namespace vitex
 			VI_MEASURE(core::timings::file_system);
 			dispatch_timers(core::schedule::get_clock());
 
-			core::ordered_map<std::chrono::microseconds, socket*> dirty_timers;
-			core::unordered_set<socket*> dirty_trackers;
+			core::btree_map<std::chrono::microseconds, socket*> dirty_timers;
+			core::hash_set<socket*> dirty_trackers;
 			core::umutex<std::mutex> unique(exclusive);
 			VI_DEBUG("net shutdown multiplexer on fds (sockets = %i)", (int)(timers.size() + trackers.size()));
 			dirty_timers.swap(timers);
@@ -4472,11 +4472,11 @@ namespace vitex
 		{
 			return new socket_router();
 		}
-		const core::unordered_set<socket_connection*>& socket_server::get_active_clients()
+		const core::hash_set<socket_connection*>& socket_server::get_active_clients()
 		{
 			return active;
 		}
-		const core::unordered_set<socket_connection*>& socket_server::get_pooled_clients()
+		const core::hash_set<socket_connection*>& socket_server::get_pooled_clients()
 		{
 			return inactive;
 		}

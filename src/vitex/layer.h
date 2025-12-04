@@ -239,7 +239,7 @@ namespace vitex
 			static void pack(core::schema* v, const core::vector<float>& value);
 			static void pack(core::schema* v, const core::vector<double>& value);
 			static void pack(core::schema* v, const core::vector<core::string>& value);
-			static void pack(core::schema* v, const core::unordered_map<size_t, size_t>& value);
+			static void pack(core::schema* v, const core::hash_map<size_t, size_t>& value);
 			static bool unpack(core::schema* v, bool* o);
 			static bool unpack(core::schema* v, int32_t* o);
 			static bool unpack(core::schema* v, int64_t* o);
@@ -257,7 +257,7 @@ namespace vitex
 			static bool unpack(core::schema* v, core::vector<float>* o);
 			static bool unpack(core::schema* v, core::vector<double>* o);
 			static bool unpack(core::schema* v, core::vector<core::string>* o);
-			static bool unpack(core::schema* v, core::unordered_map<size_t, size_t>* o);
+			static bool unpack(core::schema* v, core::hash_map<size_t, size_t>* o);
 		};
 
 		class asset_file final : public core::reference<asset_file>
@@ -293,10 +293,10 @@ namespace vitex
 		class content_manager : public core::reference<content_manager>
 		{
 		private:
-			core::unordered_map<core::string, core::unordered_map<processor*, asset_cache*>> assets;
-			core::unordered_map<core::string, asset_archive*> archives;
-			core::unordered_map<uint64_t, processor*> processors;
-			core::unordered_map<core::stream*, size_t> streams;
+			core::hash_map<core::string, core::hash_map<processor*, asset_cache*>> assets;
+			core::hash_map<core::string, asset_archive*> archives;
+			core::hash_map<uint64_t, processor*> processors;
+			core::hash_map<core::stream*, size_t> streams;
 			core::string environment, base;
 			std::mutex exclusive;
 			size_t queue;
@@ -320,7 +320,7 @@ namespace vitex
 			processor* get_processor(uint64_t id);
 			asset_cache* find_cache(processor* target, const std::string_view& path);
 			asset_cache* find_cache(processor* target, void* resource);
-			const core::unordered_map<uint64_t, processor*>& get_processors() const;
+			const core::hash_map<uint64_t, processor*>& get_processors() const;
 			bool remove_processor(uint64_t id);
 			void* try_to_cache(processor* root, const std::string_view& path, void* resource);
 			bool is_busy();
