@@ -195,7 +195,7 @@ namespace vitex
 			core::expects_system<size_t> web_socket_frame::send(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
 			{
 				core::umutex<std::mutex> unique(section);
-				if (enqueue(mask, buffer, opcode, std::move(callback)))
+				if (enqueue(mask, buffer, opcode, callback))
 					return (size_t)0;
 
 				busy = true;
@@ -512,7 +512,7 @@ namespace vitex
 			{
 				return (client*)user_data;
 			}
-			bool web_socket_frame::enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
+			bool web_socket_frame::enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, const web_socket_callback& callback)
 			{
 				if (is_writeable())
 					return false;
@@ -1889,25 +1889,29 @@ namespace vitex
 						{
 							int64_t result = resolver->parse_decode_chunked((uint8_t*)buffer, &recv);
 							if (result == -1)
-								return false;
+								goto exit;
 
 							request.content.offset += recv;
-							if (eat)
-								return result == -2;
-							else if (callback)
-								callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
+							if (!eat)
+							{
+								if (callback)
+									callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
+								if (request.content.data.size() < root->router->max_net_buffer)
+									request.content.append(std::string_view((char*)buffer, recv));
+							}
 
-							if (request.content.data.size() < root->router->max_net_buffer)
-								request.content.append(std::string_view((char*)buffer, recv));
-							return result == -2;
+							if (result != -2)
+								goto exit;
 						}
 						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
+						exit:
 							request.content.finalize();
 							if (callback)
 								callback(this, event, "");
-						}
 
+							return false;
+						}
 						return true;
 					});
 				}
@@ -1931,14 +1935,13 @@ namespace vitex
 					if (packet::is_data(event))
 					{
 						request.content.offset += recv;
-						if (eat)
-							return true;
-
-						if (callback)
-							callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
-
-						if (request.content.data.size() < root->router->max_heap_buffer)
-							request.content.append(std::string_view((char*)buffer, recv));
+						if (!eat)
+						{
+							if (callback)
+								callback(this, socket_poll::next, std::string_view((char*)buffer, recv));
+							if (request.content.data.size() < root->router->max_heap_buffer)
+								request.content.append(std::string_view((char*)buffer, recv));
+						}
 					}
 					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{
@@ -2017,13 +2020,16 @@ namespace vitex
 							if (resolver->multipart.callback)
 								resolver->multipart.callback(nullptr);
 
-							return false;
+							goto exit;
 						}
 						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
+						exit:
 							request.content.finalize();
 							if (resolver->multipart.callback)
 								resolver->multipart.callback(nullptr);
+
+							return false;
 						}
 
 						return true;
@@ -2081,10 +2087,11 @@ namespace vitex
 						if (callback)
 							callback(nullptr);
 
-						return false;
+						goto exit;
 					}
 					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{
+					exit:
 						request.content.finalize();
 						if (packet::is_done(event))
 						{
@@ -6208,15 +6215,17 @@ namespace vitex
 						{
 							subresult = resolver->parse_decode_chunked((uint8_t*)buffer, &recv);
 							if (subresult == -1)
-								return false;
+								goto exit;
 
 							response.content.offset += recv;
 							if (!eat)
 								response.content.append(std::string_view((char*)buffer, recv));
-							return subresult == -2;
+							if (subresult != -2)
+								goto exit;
 						}
 						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
+						exit:
 							if (subresult != -2)
 							{
 								response.content.finalize();
@@ -6228,6 +6237,8 @@ namespace vitex
 								result.set(core::system_exception("download transfer encoding content parsing failed", std::make_error_condition(std::errc::protocol_error)));
 							else
 								result.set(core::expectation::met);
+
+							return false;
 						}
 
 						return true;
@@ -6247,7 +6258,6 @@ namespace vitex
 							response.content.offset += recv;
 							if (!eat)
 								response.content.append(std::string_view((char*)buffer, recv));
-							return true;
 						}
 						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
@@ -6283,7 +6293,6 @@ namespace vitex
 						response.content.offset += recv;
 						if (!eat)
 							response.content.append(std::string_view((char*)buffer, recv));
-						return true;
 					}
 					else if (packet::is_done(event) || packet::is_error_or_skip(event))
 					{

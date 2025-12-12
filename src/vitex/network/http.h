@@ -403,7 +403,7 @@ namespace vitex
 				void update();
 				void finalize();
 				void dequeue();
-				bool enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
+				bool enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, const web_socket_callback& callback);
 				bool is_writeable();
 				bool is_ignore();
 			};

@@ -12,8 +12,8 @@ namespace vitex
 		use_locale = 1 << 3,
 		major_version = 4,
 		minor_version = 5,
-		patch_version = 8,
-		build_version = 0,
+		patch_version = 10,
+		build_version = 5,
 		version = (major_version) * 100000000 + (minor_version) * 1000000 + (patch_version) * 1000 + build_version
 	};
 
