@@ -6802,12 +6802,12 @@ namespace vitex
 
 			size_t offset = source[0].size() + source[1].size() + 1;
 			source[0] = codec::base64_url_decode(source[0]);
-			core::uptr<core::schema> header = core::schema::convert_from_json(source[0]).or_else(nullptr);
+			core::uptr<core::schema> header = core::schema::from_json(source[0]).or_else(nullptr);
 			if (!header)
 				return crypto_exception(-1, "jwt:header_parser_error");
 
 			source[1] = codec::base64_url_decode(source[1]);
-			core::uptr<core::schema> payload = core::schema::convert_from_json(source[1]).or_else(nullptr);
+			core::uptr<core::schema> payload = core::schema::from_json(source[1]).or_else(nullptr);
 			if (!payload)
 				return crypto_exception(-1, "jwt:payload_parser_error");
 
@@ -6845,7 +6845,7 @@ namespace vitex
 			if (!source)
 				return source.error();
 
-			auto result = core::schema::convert_from_json(*source);
+			auto result = core::schema::from_json(*source);
 			if (!result)
 				return crypto_exception(-1, "doc:payload_parser_error");
 

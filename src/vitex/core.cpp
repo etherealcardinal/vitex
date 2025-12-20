@@ -12496,7 +12496,7 @@ namespace vitex
 			});
 			return result;
 		}
-		expects_parser<schema*> schema::convert_from_xml(const std::string_view& buffer)
+		expects_parser<schema*> schema::from_xml(const std::string_view& buffer)
 		{
 #ifdef VI_PUGIXML
 			if (buffer.empty())
@@ -12549,7 +12549,7 @@ namespace vitex
 			return parser_exception(parser_error::not_supported, 0, "no capabilities to parse XML");
 #endif
 		}
-		expects_parser<schema*> schema::convert_from_json(const std::string_view& buffer)
+		expects_parser<schema*> schema::from_json(const std::string_view& buffer)
 		{
 #ifdef VI_RAPIDJSON
 			if (buffer.empty())
@@ -12557,8 +12557,6 @@ namespace vitex
 
 			rapidjson::Document base;
 			base.Parse<rapidjson::kParseNumbersAsStringsFlag>(buffer.data(), buffer.size());
-
-			schema* result = nullptr;
 			if (base.HasParseError())
 			{
 				size_t offset = base.GetErrorOffset();
@@ -12603,46 +12601,27 @@ namespace vitex
 				}
 			}
 
-			rapidjson::Type type = base.GetType();
-			switch (type)
-			{
-				case rapidjson::kNullType:
-					result = new schema(var::null());
-					break;
-				case rapidjson::kFalseType:
-					result = new schema(var::boolean(false));
-					break;
-				case rapidjson::kTrueType:
-					result = new schema(var::boolean(true));
-					break;
-				case rapidjson::kObjectType:
-					result = var::set::object();
-					process_convertion_from_json((void*)&base, result);
-					break;
-				case rapidjson::kArrayType:
-					result = var::set::array();
-					process_convertion_from_json((void*)&base, result);
-					break;
-				case rapidjson::kStringType:
-					result = process_conversion_from_json_string_or_number(&base, true);
-					break;
-				case rapidjson::kNumberType:
-					if (base.IsInt())
-						result = new schema(var::integer(base.GetInt64()));
-					else
-						result = new schema(var::number(base.GetDouble()));
-					break;
-				default:
-					result = new schema(var::undefined());
-					break;
-			}
-
+			auto* result = new schema(var::undefined());
+			process_convertion_from_json(&base, result);
 			return result;
 #else
 			return parser_exception(parser_error::not_supported, 0, "no capabilities to parse JSON");
 #endif
 		}
-		expects_parser<schema*> schema::convert_from_jsonb(const schema_read_callback& callback)
+		expects_parser<schema*> schema::from_jsonb(const std::string_view& binary)
+		{
+			size_t offset = 0;
+			return from_jsonb([&binary, &offset](uint8_t* buffer, size_t length)
+			{
+				if (offset + length > binary.size())
+					return false;
+
+				memcpy((void*)buffer, binary.data() + offset, length);
+				offset += length;
+				return true;
+			});
+		}
+		expects_parser<schema*> schema::from_jsonb(const schema_read_callback& callback)
 		{
 			VI_ASSERT(callback, "callback should not be empty");
 			uint64_t version = 0;
@@ -12690,27 +12669,6 @@ namespace vitex
 				return status.error();
 
 			return current.reset();
-		}
-		expects_parser<schema*> schema::from_xml(const std::string_view& text)
-		{
-			return convert_from_xml(text);
-		}
-		expects_parser<schema*> schema::from_json(const std::string_view& text)
-		{
-			return convert_from_json(text);
-		}
-		expects_parser<schema*> schema::from_jsonb(const std::string_view& binary)
-		{
-			size_t offset = 0;
-			return convert_from_jsonb([&binary, &offset](uint8_t* buffer, size_t length)
-			{
-				if (offset + length > binary.size())
-					return false;
-
-				memcpy((void*)buffer, binary.data() + offset, length);
-				offset += length;
-				return true;
-			});
 		}
 		expects<void, parser_exception> schema::process_convertion_from_jsonb(schema* current, hash_map<size_t, string>* map, const schema_read_callback& callback)
 		{
@@ -12837,37 +12795,6 @@ namespace vitex
 
 			return core::expectation::met;
 		}
-		schema* schema::process_conversion_from_json_string_or_number(void* base, bool is_document)
-		{
-#ifdef VI_RAPIDJSON
-			const char* buffer = (is_document ? ((rapidjson::Document*)base)->GetString() : ((rapidjson::Value*)base)->GetString());
-			size_t size = (is_document ? ((rapidjson::Document*)base)->GetStringLength() : ((rapidjson::Value*)base)->GetStringLength());
-			string text(buffer, size);
-
-			if (!stringify::has_number(text))
-				return new schema(var::string(text));
-
-			if (stringify::has_decimal(text))
-				return new schema(var::decimal_string(text));
-
-			if (stringify::has_integer(text))
-			{
-				auto number = from_string<int64_t>(text);
-				if (number)
-					return new schema(var::integer(*number));
-			}
-			else
-			{
-				auto number = from_string<double>(text);
-				if (number)
-					return new schema(var::number(*number));
-			}
-
-			return new schema(var::string(text));
-#else
-			return var::set::undefined();
-#endif
-		}
 		void schema::process_convertion_from_xml(void* base, schema* current)
 		{
 #ifdef VI_PUGIXML
@@ -12902,95 +12829,95 @@ namespace vitex
 #ifdef VI_RAPIDJSON
 			VI_ASSERT(base != nullptr && current != nullptr, "base and current should be set");
 			auto child = (rapidjson::Value*)base;
-			if (!child->IsArray())
+			if (child->IsObject())
 			{
-				string name;
-				current->reserve((size_t)child->MemberCount());
-
-				var_type type = current->value.type;
 				current->value.type = var_type::array;
-
+				current->reserve((size_t)child->MemberCount());
 				for (auto it = child->MemberBegin(); it != child->MemberEnd(); ++it)
 				{
 					if (!it->name.IsString())
 						continue;
 
-					name.assign(it->name.GetString(), (size_t)it->name.GetStringLength());
-					switch (it->value.GetType())
-					{
-						case rapidjson::kNullType:
-							current->set(name, var::null());
-							break;
-						case rapidjson::kFalseType:
-							current->set(name, var::boolean(false));
-							break;
-						case rapidjson::kTrueType:
-							current->set(name, var::boolean(true));
-							break;
-						case rapidjson::kObjectType:
-							process_convertion_from_json((void*)&it->value, current->set(name));
-							break;
-						case rapidjson::kArrayType:
-							process_convertion_from_json((void*)&it->value, current->set(name, var::array()));
-							break;
-						case rapidjson::kStringType:
-							current->set(name, process_conversion_from_json_string_or_number(&it->value, false));
-							break;
-						case rapidjson::kNumberType:
-							if (it->value.IsInt())
-								current->set(name, var::integer(it->value.GetInt64()));
-							else
-								current->set(name, var::number(it->value.GetDouble()));
-							break;
-						default:
-							break;
-					}
+					auto* child = new schema(var::undefined());
+					process_convertion_from_json(&it->value, child);
+					current->set(std::string_view(it->name.GetString(), (size_t)it->name.GetStringLength()), child);
 				}
-
-				current->value.type = type;
+				current->value.type = var_type::object;
+			}
+			else if (child->IsArray())
+			{
+				current->value.type = var_type::array;
+				current->reserve((size_t)child->Size());
+				for (auto it = child->Begin(); it != child->End(); ++it)
+				{
+					auto* child = new schema(var::undefined());
+					process_convertion_from_json(it, child);
+					current->push(child);
+				}
 			}
 			else
 			{
-				string value;
-				current->reserve((size_t)child->Size());
-
-				for (auto it = child->Begin(); it != child->End(); ++it)
+				switch (child->GetType())
 				{
-					switch (it->GetType())
+					case rapidjson::kNullType:
+						current->value = var::null();
+						break;
+					case rapidjson::kFalseType:
+						current->value = var::boolean(false);
+						break;
+					case rapidjson::kTrueType:
+						current->value = var::boolean(true);
+						break;
+					case rapidjson::kStringType:
 					{
-						case rapidjson::kNullType:
-							current->push(var::null());
-							break;
-						case rapidjson::kFalseType:
-							current->push(var::boolean(false));
-							break;
-						case rapidjson::kTrueType:
-							current->push(var::boolean(true));
-							break;
-						case rapidjson::kObjectType:
-							process_convertion_from_json((void*)it, current->push(var::object()));
-							break;
-						case rapidjson::kArrayType:
-							process_convertion_from_json((void*)it, current->push(var::array()));
-							break;
-						case rapidjson::kStringType:
+						std::string_view text(child->GetString(), child->GetStringLength());
+						if (text.size() < 2 || text.front() != PREFIX_BINARY[0] || text.back() != PREFIX_BINARY[0])
 						{
-							const char* buffer = it->GetString(); size_t size = it->GetStringLength();
-							if (size < 2 || *buffer != PREFIX_BINARY[0] || buffer[size - 1] != PREFIX_BINARY[0])
-								current->push(process_conversion_from_json_string_or_number((void*)it, false));
+							if (!stringify::has_number(text))
+							{
+								current->value = var::string(text);
+								break;
+							}
+							else if (stringify::has_decimal(text))
+							{
+								current->value = var::decimal_string(text);
+								break;
+							}
+							else if (stringify::has_integer(text))
+							{
+								auto number = from_string<int64_t>(text);
+								if (number)
+								{
+									current->value = var::integer(*number);
+									break;
+								}
+							}
 							else
-								current->push(var::binary((uint8_t*)buffer + 1, size - 2));
+							{
+								auto number = from_string<double>(text);
+								if (number)
+								{
+									current->value = var::number(*number);
+									break;
+								}
+							}
+
+							current->value = var::string(text);
 							break;
 						}
-						case rapidjson::kNumberType:
-							if (it->IsInt())
-								current->push(var::integer(it->GetInt64()));
-							else
-								current->push(var::number(it->GetDouble()));
-							break;
-						default:
-							break;
+						else
+							current->value = var::binary((uint8_t*)text.data() + 1, text.size() - 2);
+						break;
 					}
+					case rapidjson::kNumberType:
+						if (child->IsInt())
+							current->value = var::integer(child->GetInt64());
+						else
+							current->value = var::number(child->GetDouble());
+						break;
+					default:
+						current->value = var::undefined();
+						break;
 				}
 			}
 #endif

@@ -4078,11 +4078,11 @@ namespace vitex
 			}
 			core::schema* schema_from_json(const std::string_view& value)
 			{
-				return expects_wrapper::unwrap(core::schema::convert_from_json(value), (core::schema*)nullptr);
+				return expects_wrapper::unwrap(core::schema::from_json(value), (core::schema*)nullptr);
 			}
 			core::schema* schema_from_xml(const std::string_view& value)
 			{
-				return expects_wrapper::unwrap(core::schema::convert_from_xml(value), (core::schema*)nullptr);
+				return expects_wrapper::unwrap(core::schema::from_xml(value), (core::schema*)nullptr);
 			}
 			core::schema* schema_import(const std::string_view& value)
 			{

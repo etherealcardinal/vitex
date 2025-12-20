@@ -33,7 +33,7 @@ namespace vitex
 			expects_content<void*> schema_processor::deserialize(core::stream* stream, size_t offset, const core::variant_args& args)
 			{
 				VI_ASSERT(stream != nullptr, "stream should be set");
-				auto object = core::schema::convert_from_jsonb([stream](uint8_t* buffer, size_t size) { return size > 0 ? stream->read(buffer, size).or_else(0) == size : true; });
+				auto object = core::schema::from_jsonb([stream](uint8_t* buffer, size_t size) { return size > 0 ? stream->read(buffer, size).or_else(0) == size : true; });
 				if (object)
 					return *object;
 
@@ -41,11 +41,11 @@ namespace vitex
 				stream->seek(core::file_seek::begin, offset);
 				stream->read_all([&data](uint8_t* buffer, size_t size) { data.append((char*)buffer, size); });
 
-				object = core::schema::convert_from_json(data);
+				object = core::schema::from_json(data);
 				if (object)
 					return *object;
 
-				object = core::schema::convert_from_xml(data);
+				object = core::schema::from_xml(data);
 				if (!object)
 					return content_exception(std::move(object.error().message()));
 

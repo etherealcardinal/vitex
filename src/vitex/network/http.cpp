@@ -2319,7 +2319,7 @@ namespace vitex
 			void query::decode_ajson(const std::string_view& body)
 			{
 				core::memory::release(object);
-				auto result = core::schema::convert_from_json(body);
+				auto result = core::schema::from_json(body);
 				if (result)
 					object = *result;
 			}
@@ -2526,7 +2526,7 @@ namespace vitex
 				}
 
 				core::memory::release(query);
-				auto result = core::schema::convert_from_jsonb([&stream](uint8_t* buffer, size_t size) { return fread(buffer, sizeof(uint8_t), size, *stream) == size; });
+				auto result = core::schema::from_jsonb([&stream](uint8_t* buffer, size_t size) { return fread(buffer, sizeof(uint8_t), size, *stream) == size; });
 				core::os::file::close(*stream);
 				if (!result)
 					return core::system_exception(result.error().message(), std::make_error_condition(std::errc::bad_message));
@@ -6572,7 +6572,7 @@ namespace vitex
 					if (!status)
 						return status.error();
 
-					auto data = core::schema::convert_from_json(std::string_view(response.content.data.data(), response.content.data.size()));
+					auto data = core::schema::from_json(std::string_view(response.content.data.data(), response.content.data.size()));
 					if (!data)
 						return core::system_exception(data.error().message(), std::make_error_condition(std::errc::bad_message));
 
@@ -6586,7 +6586,7 @@ namespace vitex
 					if (!status)
 						return status.error();
 
-					auto data = core::schema::convert_from_xml(std::string_view(response.content.data.data(), response.content.data.size()));
+					auto data = core::schema::from_xml(std::string_view(response.content.data.data(), response.content.data.size()));
 					if (!data)
 						return core::system_exception(data.error().message(), std::make_error_condition(std::errc::bad_message));
 

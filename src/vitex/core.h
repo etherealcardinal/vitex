@@ -3793,16 +3793,13 @@ namespace vitex
 			static string to_xml(schema* value);
 			static string to_json(schema* value);
 			static vector<char> to_jsonb(schema* value);
-			static expects_parser<schema*> convert_from_xml(const std::string_view& buffer);
-			static expects_parser<schema*> convert_from_json(const std::string_view& buffer);
-			static expects_parser<schema*> convert_from_jsonb(const schema_read_callback& callback);
 			static expects_parser<schema*> from_xml(const std::string_view& text);
 			static expects_parser<schema*> from_json(const std::string_view& text);
 			static expects_parser<schema*> from_jsonb(const std::string_view& binary);
+			static expects_parser<schema*> from_jsonb(const schema_read_callback& callback);
 
 		private:
 			static expects_parser<void> process_convertion_from_jsonb(schema* current, hash_map<size_t, string>* map, const schema_read_callback& callback);
-			static schema* process_conversion_from_json_string_or_number(void* base, bool is_document);
 			static void process_convertion_from_xml(void* base, schema* current);
 			static void process_convertion_from_json(void* base, schema* current);
 			static void process_convertion_to_jsonb(schema* current, hash_map<string, size_t>* map, const schema_write_callback& callback);

@@ -445,7 +445,7 @@ namespace vitex
 			struct connection_queue
 			{
 				core::single_queue<acquire_callback> requests;
-				core::hash_set<socket*> streams;
+				core::vector<core::uref<socket>> cache;
 				size_t duplicates = 0;
 			};
 
@@ -465,7 +465,7 @@ namespace vitex
 			size_t get_size();
 
 		private:
-			void listen_connection(core::string&& id, socket* target);
+			void listen_connection(core::string&& id, core::uref<socket>&& target);
 		};
 
 		class certificate_builder final : public core::reference<certificate_builder>

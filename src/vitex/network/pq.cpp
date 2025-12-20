@@ -285,7 +285,7 @@ namespace vitex
 					case oid_type::JSON:
 					case oid_type::JSONB:
 					{
-						auto result = core::schema::convert_from_json(std::string_view(data, (size_t)size));
+						auto result = core::schema::from_json(std::string_view(data, (size_t)size));
 						if (result)
 							return *result;
 
@@ -557,7 +557,7 @@ namespace vitex
 				if (data.empty())
 					return nullptr;
 
-				auto result = core::schema::convert_from_json(data);
+				auto result = core::schema::from_json(data);
 				return result ? *result : nullptr;
 #else
 				return nullptr;
