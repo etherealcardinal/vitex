@@ -2337,7 +2337,7 @@ namespace vitex
 		}
 		bool uplinks::push_connection(const socket_address& address, socket* stream)
 		{
-			if (!max_duplicates)
+			if (!stream || !max_duplicates)
 				return false;
 
 			auto target = core::uref(stream);
@@ -2346,9 +2346,6 @@ namespace vitex
 			auto it = connections.find(name);
 			if (it == connections.end())
 			{
-				if (!target)
-					return false;
-
 				VI_DEBUG("uplink store fd %i of %s", (int)target->get_fd(), name.c_str());
 				connections[name].cache.push_back(core::uref(target));
 				target->set_io_timeout(0);
@@ -2362,17 +2359,8 @@ namespace vitex
 				it->second.requests.pop();
 				unique.negate();
 				callback(target.reset());
-				if (!target)
-					return false;
-
 				VI_DEBUG("uplink reuse fd %i of %s", (int)target->get_fd(), name.c_str());
 				return true;
-			}
-			else if (!target)
-			{
-				if (it->second.cache.empty())
-					connections.erase(it);
-				return false;
 			}
 			else if (it->second.cache.size() >= max_duplicates)
 				return false;
