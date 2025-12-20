@@ -241,6 +241,7 @@ namespace vitex
 				void append(const std::string_view& data);
 				void assign(const std::string_view& data);
 				void prepare(const kimv_hash_map& headers, const uint8_t* buffer, size_t size);
+				void postprocess_and_finalize(const kimv_hash_map& headers);
 				void finalize();
 				void cleanup();
 				core::expects_parser<core::schema*> get_json() const;

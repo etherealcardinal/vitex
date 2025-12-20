@@ -1302,6 +1302,56 @@ namespace vitex
 				if (!core::stringify::case_equals(transfer_encoding, "chunked"))
 					limited = true;
 			}
+			void content_frame::postprocess_and_finalize(const kimv_hash_map& headers)
+			{
+#ifdef VI_ZLIB
+				bool deflate = false, gzip = false;
+				auto content_encoding = header_text(headers, "Content-Encoding");
+				if (!content_encoding.empty())
+				{
+					deflate = content_encoding.find("deflate") != std::string::npos;
+					gzip = content_encoding.find("gzip") != std::string::npos;
+				}
+
+				if (!content_encoding.empty() && (deflate || gzip))
+				{
+					z_stream stream;
+					stream.zalloc = Z_NULL;
+					stream.zfree = Z_NULL;
+					stream.opaque = Z_NULL;
+					stream.avail_in = (uInt)data.size();
+					stream.next_in = (Bytef*)data.data();
+
+					if (inflateInit2(&stream, (gzip ? 31 : -15)) == Z_OK)
+					{
+						core::string buffer(data.size() * 2, '\0');
+						stream.avail_out = (uInt)buffer.size();
+						stream.next_out = (Bytef*)buffer.data();
+						while (true)
+						{
+							int result = inflate(&stream, Z_SYNC_FLUSH);
+							if (result == Z_STREAM_END)
+								break;
+							else if (result != Z_OK)
+								goto exit;
+							else if (stream.avail_out != 0)
+								continue;
+
+							size_t old_size = buffer.size();
+							buffer.resize(old_size * 2);
+							stream.avail_out = (uInt)(buffer.size() - old_size);
+							stream.next_out = (Bytef*)buffer.data() + old_size;
+						}
+
+						buffer.resize(buffer.size() - stream.avail_out);
+						assign(buffer);
+					exit:
+						inflateEnd(&stream);
+					}
+				}
+#endif
+				finalize();
+			}
 			void content_frame::finalize()
 			{
 				length = offset;
@@ -1646,7 +1696,7 @@ namespace vitex
 							fStream.avail_in = (uInt)response.content.data.size();
 							fStream.next_in = (Bytef*)response.content.data.data();
 
-							if (deflateInit2(&fStream, route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), route->compression.memory_level, (int)route->compression.tune) == Z_OK)
+							if (deflateInit2(&fStream, route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), route->compression.memory_level, (int)route->compression.tune) == Z_OK)
 							{
 								core::string buffer(response.content.data.size(), '\0');
 								fStream.avail_out = (uInt)buffer.size();
@@ -5316,7 +5366,7 @@ namespace vitex
 						stream.avail_in = (uInt)base->response.content.data.size();
 						stream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&stream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
+						if (deflateInit2(&stream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
 							core::string buffer(base->response.content.data.size(), '\0');
 							stream.avail_out = (uInt)buffer.size();
@@ -5664,7 +5714,7 @@ namespace vitex
 						zstream.avail_in = (uInt)base->response.content.data.size();
 						zstream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 15 | 16 : 15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
+						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
 							core::string buffer(base->response.content.data.size(), '\0');
 							zstream.avail_out = (uInt)buffer.size();
@@ -6189,7 +6239,7 @@ namespace vitex
 								response.content.data.erase(response.content.data.begin() + decoded_size, response.content.data.begin() + decoded_size + leftover_size);
 							if (subresult == 0)
 							{
-								response.content.finalize();
+								response.content.postprocess_and_finalize(response.headers);
 								return core::expects_promise_system<void>(core::expectation::met);
 							}
 						}
@@ -6228,7 +6278,7 @@ namespace vitex
 						exit:
 							if (subresult != -2)
 							{
-								response.content.finalize();
+								response.content.postprocess_and_finalize(response.headers);
 								if (!response.content.data.empty())
 									VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 							}
@@ -6261,7 +6311,7 @@ namespace vitex
 						}
 						else if (packet::is_done(event) || packet::is_error_or_skip(event))
 						{
-							response.content.finalize();
+							response.content.postprocess_and_finalize(response.headers);
 							if (!response.content.data.empty())
 								VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 
@@ -6279,7 +6329,7 @@ namespace vitex
 				max_size = std::min(max_size, response.content.length - response.content.offset);
 				if (!max_size)
 				{
-					response.content.finalize();
+					response.content.postprocess_and_finalize(response.headers);
 					return core::expects_promise_system<void>(core::expectation::met);
 				}
 				else if (response.content.offset > response.content.length)
@@ -6298,7 +6348,7 @@ namespace vitex
 					{
 						if (response.content.length <= response.content.offset)
 						{
-							response.content.finalize();
+							response.content.postprocess_and_finalize(response.headers);
 							if (!response.content.data.empty())
 								VI_DEBUG("http fd %i responded\n%.*s", (int)net.stream->get_fd(), (int)response.content.data.size(), response.content.data.data());
 						}
@@ -6382,7 +6432,10 @@ namespace vitex
 
 				if (request.get_header("Accept").empty())
 					request.set_header("Accept", "*/*");
-
+#ifdef VI_ZLIB
+				if (request.get_header("Accept-Encoding").empty())
+					request.set_header("Accept-Encoding", "gzip, deflate");
+#endif
 				if (request.get_header("Content-Length").empty())
 				{
 					request.content.length = request.content.data.size();
