@@ -2251,37 +2251,15 @@ namespace vitex
 			return activations;
 		}
 
-		uplinks::uplinks() noexcept : max_duplicates(1)
+		uplinks::uplinks() noexcept
 		{
 			multiplexer::get()->activate();
 		}
 		uplinks::~uplinks() noexcept
 		{
-			core::single_queue<acquire_callback> queue;
 			core::umutex<std::recursive_mutex> unique(exclusive);
-			for (auto& item : connections)
-			{
-				while (!item.second.requests.empty())
-				{
-					queue.push(std::move(item.second.requests.front()));
-					item.second.requests.pop();
-				}
-			}
-
-			max_duplicates = 0;
 			connections.clear();
 			multiplexer::get()->deactivate();
-			unique.negate();
-
-			while (!queue.empty())
-			{
-				queue.front()(nullptr);
-				queue.pop();
-			}
-		}
-		void uplinks::set_max_duplicates(size_t max)
-		{
-			max_duplicates = max + 1;
 		}
 		void uplinks::listen_connection(core::string&& id, core::uref<socket>&& target)
 		{
@@ -2297,26 +2275,15 @@ namespace vitex
 					if (it == connections.end())
 						return;
 
-					for (auto c = it->second.cache.begin(); c != it->second.cache.end(); c++)
+					for (auto c = it->second.begin(); c != it->second.end(); c++)
 					{
 						if (**c != *target)
 							continue;
 
 						VI_DEBUG("uplink expire fd %i of %s", (int)target->get_fd(), id.c_str());
-						it->second.cache.erase(c);
-						if (!it->second.cache.empty())
-							return;
-
-						auto queue = std::move(it->second.requests);
-						connections.erase(it);
-						unique.unlock();
-						while (!queue.empty())
-						{
-							auto& callback = queue.front();
-							if (callback)
-								callback(nullptr);
-							queue.pop();
-						}
+						it->second.erase(c);
+						if (it->second.empty())
+							connections.erase(it);
 						return;
 					}
 				}
@@ -2337,89 +2304,35 @@ namespace vitex
 		}
 		bool uplinks::push_connection(const socket_address& address, socket* stream)
 		{
-			if (!stream || !max_duplicates)
+			if (!stream)
 				return false;
 
 			auto target = core::uref(stream);
 			auto name = get_address_identification(address);
 			core::umutex<std::recursive_mutex> unique(exclusive);
-			auto it = connections.find(name);
-			if (it == connections.end())
-			{
-				VI_DEBUG("uplink store fd %i of %s", (int)target->get_fd(), name.c_str());
-				connections[name].cache.push_back(core::uref(target));
-				target->set_io_timeout(0);
-				target->set_blocking(false);
-				listen_connection(std::move(name), std::move(target));
-				return true;
-			}
-			else if (!it->second.requests.empty())
-			{
-				auto callback = std::move(it->second.requests.front());
-				it->second.requests.pop();
-				unique.negate();
-				callback(target.reset());
-				VI_DEBUG("uplink reuse fd %i of %s", (int)target->get_fd(), name.c_str());
-				return true;
-			}
-			else if (it->second.cache.size() >= max_duplicates)
-				return false;
-
 			VI_DEBUG("uplink store fd %i of %s", (int)target->get_fd(), name.c_str());
-			it->second.cache.push_back(core::uref(target));
+			connections[name].push_back(core::uref(target));
 			target->set_io_timeout(0);
 			target->set_blocking(false);
 			listen_connection(std::move(name), std::move(target));
 			return true;
 		}
-		bool uplinks::pop_connection_queued(const socket_address& address, acquire_callback&& callback)
+		socket* uplinks::pop_connection(const socket_address& address)
 		{
-			VI_ASSERT(callback != nullptr, "callback should be set");
-			if (!max_duplicates)
-			{
-				callback(nullptr);
-				return false;
-			}
-
 			auto name = get_address_identification(address);
 			core::umutex<std::recursive_mutex> unique(exclusive);
 			auto it = connections.find(name);
-			if (it == connections.end())
-			{
-				auto& item = connections[name];
-				item.duplicates = max_duplicates - 1;
-				callback(nullptr);
-				return false;
-			}
-			else if (it->second.cache.empty())
-			{
-				if (it->second.duplicates > 0)
-				{
-					--it->second.duplicates;
-					callback(nullptr);
-					return false;
-				}
+			if (it == connections.end() || it->second.empty())
+				return nullptr;
 
-				it->second.requests.emplace(std::move(callback));
-				return true;
-			}
+			core::uref<socket> target = std::move(*it->second.begin());
+			it->second.erase(it->second.begin());
+			if (it->second.empty())
+				connections.erase(it);
 
-			core::uref<socket> target = std::move(*it->second.cache.begin());
-			it->second.cache.erase(it->second.cache.begin());
 			VI_DEBUG("uplink reuse fd %i of %s", (int)target->get_fd(), name.c_str());
 			multiplexer::get()->clear_events(*target);
-			callback(target.reset());
-			return true;
-		}
-		core::promise<socket*> uplinks::pop_connection(const socket_address& address)
-		{
-			core::promise<socket*> future;
-			pop_connection_queued(address, [future](socket* target) mutable { future.set(target); });
-			return future;
-		}
-		size_t uplinks::get_max_duplicates() const
-		{
-			return max_duplicates;
+			return target.reset();
 		}
 		size_t uplinks::get_size()
 		{
@@ -4534,19 +4447,23 @@ namespace vitex
 			if (async_policy_updated && config.is_non_blocking)
 				multiplexer::get()->activate();
 
-			try_reuse_stream(address, [this, callback = std::move(callback)](bool is_reusing) mutable
+			if (try_reuse_stream(address))
 			{
-				if (is_reusing)
-					return callback(core::expectation::met);
+				callback(core::expectation::met);
+				return core::expectation::met;
+			}
 
-				auto status = net.stream->open(state.address);
-				if (!status)
-					return callback(core::system_exception("connect failed", std::move(status.error())));
+			auto status = net.stream->open(state.address);
+			if (!status)
+			{
+				auto result = core::system_exception("connect failed", std::move(status.error()));
+				callback(result);
+				return result;
+			}
 
-				configure_stream();
-				state.resolver = std::move(callback);
-				net.stream->connect_queued(state.address, std::bind(&socket_client::dispatch_connection, this, std::placeholders::_1));
-			});
+			configure_stream();
+			state.resolver = std::move(callback);
+			net.stream->connect_queued(state.address, std::bind(&socket_client::dispatch_connection, this, std::placeholders::_1));
 			return core::expectation::met;
 		}
 		core::expects_system<void> socket_client::disconnect_queued(socket_client_callback&& callback)
@@ -4697,30 +4614,22 @@ namespace vitex
 		{
 			on_connect();
 		}
-		bool socket_client::try_reuse_stream(const socket_address& address, std::function<void(bool)>&& callback)
+		bool socket_client::try_reuse_stream(const socket_address& address)
 		{
 			if (!uplinks::has_instance())
 			{
 				create_stream();
-				callback(false);
 				return false;
 			}
 
 			destroy_stream();
-			return uplinks::get()->pop_connection_queued(address, [this, callback = std::move(callback)](socket*&& reusing_stream) mutable
-			{
-				net.stream = reusing_stream;
-				if (reusing_stream != nullptr)
-				{
-					configure_stream();
-					callback(true);
-					return true;
-				}
-
+			auto reusing_stream = uplinks::get()->pop_connection(address);
+			net.stream = reusing_stream;
+			if (net.stream != nullptr)
+				configure_stream();
+			else
 				create_stream();
-				callback(false);
-				return false;
-			});
+			return reusing_stream != nullptr;
 		}
 		bool socket_client::try_store_stream()
 		{

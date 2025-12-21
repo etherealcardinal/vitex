@@ -442,26 +442,14 @@ namespace vitex
 			typedef std::function<void(socket*)> acquire_callback;
 
 		private:
-			struct connection_queue
-			{
-				core::single_queue<acquire_callback> requests;
-				core::vector<core::uref<socket>> cache;
-				size_t duplicates = 0;
-			};
-
-		private:
+			core::hash_map<core::string, core::vector<core::uref<socket>>> connections;
 			std::recursive_mutex exclusive;
-			core::hash_map<core::string, connection_queue> connections;
-			size_t max_duplicates;
 
 		public:
 			uplinks() noexcept;
 			virtual ~uplinks() noexcept override;
-			void set_max_duplicates(size_t max);
 			bool push_connection(const socket_address& address, socket* target);
-			bool pop_connection_queued(const socket_address& address, acquire_callback&& callback);
-			core::promise<socket*> pop_connection(const socket_address& address);
-			size_t get_max_duplicates() const;
+			socket* pop_connection(const socket_address& address);
 			size_t get_size();
 
 		private:
@@ -745,7 +733,7 @@ namespace vitex
 			virtual core::expects_system<void> on_connect();
 			virtual core::expects_system<void> on_reuse();
 			virtual core::expects_system<void> on_disconnect();
-			virtual bool try_reuse_stream(const socket_address& address, std::function<void(bool)>&& callback);
+			virtual bool try_reuse_stream(const socket_address& address);
 			virtual bool try_store_stream();
 			virtual void try_handshake(std::function<void(core::expects_system<void>&&)>&& callback);
 			virtual void dispatch_connection(const core::option<std::error_condition>& error_code);

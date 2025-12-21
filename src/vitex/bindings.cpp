@@ -11180,10 +11180,8 @@ namespace vitex
 
 				auto vuplinks = vm->set_class<network::uplinks>("uplinks", false);
 				vuplinks->set_constructor<network::uplinks>("uplinks@ f()");
-				vuplinks->set_method("void set_max_duplicates(usize)", &network::uplinks::set_max_duplicates);
 				vuplinks->set_method("bool push_connection(const socket_address&in, socket@+)", &network::uplinks::push_connection);
-				vuplinks->set_method_extern("promise<socket@>@ pop_connection(const socket_address&in)", &VI_PROMISIFY_REF(network::uplinks::pop_connection, socket));
-				vuplinks->set_method("usize max_duplicates() const", &network::uplinks::get_max_duplicates);
+				vuplinks->set_method("socket@+ pop_connection(const socket_address&in)", &network::uplinks::pop_connection);
 				vuplinks->set_method("usize size() const", &network::uplinks::get_size);
 				vuplinks->set_method_static("uplinks@+ get()", &network::uplinks::get);
 
