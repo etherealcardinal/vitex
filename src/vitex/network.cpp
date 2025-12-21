@@ -1569,7 +1569,6 @@ namespace vitex
 				VI_DEBUG("net pop client 0x%" PRIuPTR " TLS context from cache", context);
 				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
-			unique.negate();
 
 			auto status = initialize_context(context, load_certificates);
 			if (!status)
@@ -1633,7 +1632,6 @@ namespace vitex
 				VI_DEBUG("net pop client 0x%" PRIuPTR " TLS context from cache", context);
 				load_certificates = verify_depth > 0 && SSL_CTX_get_verify_depth(context) <= 0;
 			}
-			unique.negate();
 
 			auto status = initialize_context(context, load_certificates);
 			if (!status)
