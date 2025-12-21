@@ -7945,7 +7945,7 @@ namespace vitex
 				return std::make_error_condition(std::errc::permission_denied);
 
 			auto* dns = network::dns::get();
-			auto address = dns->lookup(origin.hostname, origin.port > 0 ? to_string(origin.port) : (secure ? "443" : "80"), network::dns_type::connect);
+			auto address = dns->lookup(origin.hostname, origin.port > 0 ? to_string(origin.port) : (secure ? "443" : "80"), network::dns_check::connect);
 			if (!address)
 				return address.error().error();
 

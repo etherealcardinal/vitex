@@ -169,54 +169,133 @@ namespace vitex
 		static addrinfo* try_connect_dns(const core::hash_map<socket_t, addrinfo*>& hosts, uint64_t timeout)
 		{
 			VI_MEASURE(core::timings::networking);
-
-			core::vector<pollfd> sockets4, sockets6;
-			for (auto& host : hosts)
+			core::vector<pollfd> polls;
+			polls.reserve(hosts.size());
+			for (auto& [fd, address] : hosts)
 			{
-				VI_DEBUG("net resolve dns on fd %i", (int)host.first);
-				set_socket_blocking(host.first, false);
-				int status = connect(host.first, host.second->ai_addr, (int)host.second->ai_addrlen);
-				if (status != 0 && utils::get_last_error(nullptr, status) != std::errc::operation_would_block)
-					continue;
-
-				pollfd fd;
-				fd.fd = host.first;
-				fd.events = POLLOUT;
-				if (host.second->ai_family == AF_INET6)
-					sockets6.push_back(fd);
-				else
-					sockets4.push_back(fd);
-			}
-
-			if (!sockets4.empty() && utils::poll(sockets4.data(), (int)sockets4.size(), (int)timeout) > 0)
-			{
-				for (auto& fd : sockets4)
+				VI_DEBUG("net resolve dns on fd %i", (int)fd);
+				set_socket_blocking(fd, false);
+				int status = connect(fd, address->ai_addr, (int)address->ai_addrlen);
+				if (status == 0 || utils::get_last_error(nullptr, status) == std::errc::operation_would_block)
 				{
-					if (fd.revents & POLLOUT)
-					{
-						auto it = hosts.find(fd.fd);
-						if (it != hosts.end())
-							return it->second;
-					}
+					pollfd poll;
+					poll.fd = fd;
+					poll.events = POLLOUT;
+					if (address->ai_family == AF_INET)
+						polls.insert(polls.begin(), poll);
+					else
+						polls.push_back(poll);
 				}
 			}
 
-			if (!sockets6.empty() && utils::poll(sockets6.data(), (int)sockets6.size(), (int)timeout) > 0)
+			if (utils::poll(polls.data(), (int)polls.size(), (int)timeout) <= 0)
+				return nullptr;
+			
+			for (auto& poll : polls)
 			{
-				for (auto& fd : sockets6)
-				{
-					if (fd.revents & POLLOUT)
-					{
-						auto it = hosts.find(fd.fd);
-						if (it != hosts.end())
-							return it->second;
-					}
-				}
+				if (poll.revents & POLLOUT)
+					return hosts.find(poll.fd)->second;
 			}
 
 			return nullptr;
 		}
 #ifdef VI_OPENSSL
+		static addrinfo* try_secure_connect_dns(const std::string_view& hostname, const core::hash_map<socket_t, addrinfo*>& hosts, uint64_t timeout)
+		{
+			VI_MEASURE(core::timings::networking);
+			auto transport = transport_layer::get();
+			auto context = transport->create_client_context(PEER_NOT_VERIFIED);
+			if (!context)
+				return nullptr;
+
+			core::vector<pollfd> polls;
+			polls.reserve(hosts.size());
+			for (auto& [fd, address] : hosts)
+			{
+				VI_DEBUG("net resolve dns on fd %i", (int)fd);
+				set_socket_blocking(fd, false);
+				int status = connect(fd, address->ai_addr, (int)address->ai_addrlen);
+				if (status == 0 || utils::get_last_error(nullptr, status) == std::errc::operation_would_block)
+				{
+					pollfd poll;
+					poll.fd = fd;
+					poll.events = POLLOUT;
+					if (address->ai_family == AF_INET)
+						polls.insert(polls.begin(), poll);
+					else
+						polls.push_back(poll);
+				}
+			}
+
+			SSL* failed_connection = (SSL*)std::numeric_limits<intptr_t>::max();
+			socket_t best_candidate = INVALID_SOCKET;
+			core::hash_map<socket_t, SSL*> connections;
+			while (best_candidate == INVALID_SOCKET && utils::poll(polls.data(), (int)polls.size(), (int)timeout) > 0)
+			{
+				bool may_poll_again = false;
+				for (auto& poll : polls)
+				{
+					auto& connection = connections[poll.fd];
+					if (connection == failed_connection)
+						continue;
+					else if (best_candidate != INVALID_SOCKET)
+						break;
+
+					if (connection != nullptr)
+					{
+					secure_connect:
+						switch (SSL_get_error(connection, SSL_connect(connection)))
+						{
+							case SSL_ERROR_WANT_READ:
+								poll.events = POLLIN;
+								may_poll_again = true;
+								break;
+							case SSL_ERROR_WANT_CONNECT:
+							case SSL_ERROR_WANT_WRITE:
+								poll.events = POLLOUT;
+								may_poll_again = true;
+								break;
+							case SSL_ERROR_NONE:
+								best_candidate = poll.fd;
+								break;
+							default:
+								SSL_free(connection);
+								connection = failed_connection;
+								break;
+						}
+					}
+					else if (poll.revents & POLLOUT)
+					{
+						SSL* candidate = SSL_new(*context);
+						connection = failed_connection;
+						if (candidate && SSL_set_fd(candidate, (int)poll.fd) == 1)
+						{
+							if (!hostname.empty())
+								SSL_set_tlsext_host_name(candidate, hostname.data());
+
+							connection = candidate;
+							goto secure_connect;
+						}
+						else if (candidate != nullptr)
+							SSL_free(candidate);
+					}
+				}
+				if (!may_poll_again)
+					break;
+			}
+
+			for (auto& [fd, connection] : connections)
+			{
+				if (connection != failed_connection)
+					SSL_free(connection);
+			}
+
+			transport->free_client_context(*context);
+			if (best_candidate != INVALID_SOCKET)
+				return hosts.find(best_candidate)->second;
+
+			return nullptr;
+		}
 		static std::pair<core::string, time_t> asn1_get_time(ASN1_TIME* time)
 		{
 			if (!time)
@@ -816,25 +895,25 @@ namespace vitex
 		{
 			return info.protocol;
 		}
-		dns_type socket_address::get_resolver_type() const noexcept
+		dns_check socket_address::get_resolver_type() const noexcept
 		{
-			return (info.flags & AI_PASSIVE ? dns_type::listen : dns_type::connect);
+			return (info.flags & AI_PASSIVE ? dns_check::listen : dns_check::connect);
 		}
 		socket_protocol socket_address::get_protocol_type() const noexcept
 		{
 			switch (info.protocol)
 			{
 				case IPPROTO_IP:
-					return socket_protocol::IP;
+					return socket_protocol::ip;
 				case IPPROTO_ICMP:
-					return socket_protocol::ICMP;
+					return socket_protocol::icmp;
 				case IPPROTO_UDP:
-					return socket_protocol::UDP;
+					return socket_protocol::udp;
 				case IPPROTO_RAW:
-					return socket_protocol::RAW;
+					return socket_protocol::raw;
 				case IPPROTO_TCP:
 				default:
-					return socket_protocol::TCP;
+					return socket_protocol::tcp;
 			}
 		}
 		socket_type socket_address::get_socket_type() const noexcept
@@ -1787,7 +1866,7 @@ namespace vitex
 				return reverse_address_lookup(address);
 			});
 		}
-		core::expects_system<socket_address> dns::lookup(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto, socket_type type)
+		core::expects_system<socket_address> dns::lookup(const std::string_view& hostname, const std::string_view& service, dns_check resolver, socket_protocol proto, socket_type type)
 		{
 			VI_ASSERT(!hostname.empty() && core::stringify::is_cstring(hostname), "host should be set");
 			VI_MEASURE((uint64_t)core::timings::networking * 3);
@@ -1797,19 +1876,19 @@ namespace vitex
 			hints.ai_family = AF_UNSPEC;
 			switch (proto)
 			{
-				case socket_protocol::IP:
+				case socket_protocol::ip:
 					hints.ai_protocol = IPPROTO_IP;
 					break;
-				case socket_protocol::ICMP:
+				case socket_protocol::icmp:
 					hints.ai_protocol = IPPROTO_ICMP;
 					break;
-				case socket_protocol::UDP:
+				case socket_protocol::udp:
 					hints.ai_protocol = IPPROTO_UDP;
 					break;
-				case socket_protocol::RAW:
+				case socket_protocol::raw:
 					hints.ai_protocol = IPPROTO_RAW;
 					break;
-				case socket_protocol::TCP:
+				case socket_protocol::tcp:
 				default:
 					hints.ai_protocol = IPPROTO_TCP;
 					break;
@@ -1835,10 +1914,11 @@ namespace vitex
 			}
 			switch (resolver)
 			{
-				case dns_type::connect:
+				case dns_check::connect:
+				case dns_check::secure_connect:
 					hints.ai_flags = AI_CANONNAME;
 					break;
-				case dns_type::listen:
+				case dns_check::listen:
 					hints.ai_flags = AI_CANONNAME | AI_PASSIVE;
 					break;
 				default:
@@ -1892,7 +1972,7 @@ namespace vitex
 
 				socket_t connection = *connectable;
 				VI_DEBUG("net open dns fd %i", (int)connection);
-				if (resolver == dns_type::connect)
+				if (resolver == dns_check::connect || resolver == dns_check::secure_connect)
 				{
 					hosts[connection] = it;
 					continue;
@@ -1903,10 +1983,15 @@ namespace vitex
 				VI_DEBUG("net close dns fd %i", (int)connection);
 				break;
 			}
-
-			if (resolver == dns_type::connect)
+#ifdef VI_OPENSSL
+			if (resolver == dns_check::connect)
 				target_address = try_connect_dns(hosts, CONNECT_TIMEOUT);
-
+			else if (resolver == dns_check::secure_connect)
+				target_address = try_secure_connect_dns(hostname, hosts, CONNECT_TIMEOUT);
+#else
+			if (resolver == dns_check::connect || resolver == dns_check::secure_connect)
+				target_address = try_connect_dns(hosts, CONNECT_TIMEOUT);
+#endif
 			for (auto& host : hosts)
 			{
 				closesocket(host.first);
@@ -1935,7 +2020,7 @@ namespace vitex
 
 			return result;
 		}
-		core::expects_promise_system<socket_address> dns::lookup_deferred(const std::string_view& source_hostname, const std::string_view& source_service, dns_type resolver, socket_protocol proto, socket_type type)
+		core::expects_promise_system<socket_address> dns::lookup_deferred(const std::string_view& source_hostname, const std::string_view& source_service, dns_check resolver, socket_protocol proto, socket_type type)
 		{
 			core::string hostname = core::string(source_hostname), service = core::string(source_service);
 			return core::cotask<core::expects_system<socket_address>>([this, hostname = std::move(hostname), service = std::move(service), resolver, proto, type]() mutable
@@ -3830,7 +3915,7 @@ namespace vitex
 		}
 		core::expects_system<router_listener*> socket_router::listen(const std::string_view& pattern, const std::string_view& hostname, const std::string_view& service, bool secure)
 		{
-			auto address = dns::get()->lookup(hostname, service, dns_type::listen, socket_protocol::TCP, socket_type::stream);
+			auto address = dns::get()->lookup(hostname, service, dns_check::listen, socket_protocol::tcp, socket_type::stream);
 			if (!address)
 				return address.error();
 

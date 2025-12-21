@@ -5659,7 +5659,7 @@ namespace vitex
 					return expects_wrapper::unwrap(std::move(address), core::string(), context);
 				});
 			}
-			core::promise<network::socket_address> dns_lookup_deferred(network::dns* base, const std::string_view& hostname, const std::string_view& service, network::dns_type mode, network::socket_protocol protocol, network::socket_type type)
+			core::promise<network::socket_address> dns_lookup_deferred(network::dns* base, const std::string_view& hostname, const std::string_view& service, network::dns_check mode, network::socket_protocol protocol, network::socket_type type)
 			{
 				immediate_context* context = immediate_context::get();
 				return base->lookup_deferred(hostname, service, mode, protocol, type).then<network::socket_address>([context](core::expects_system<network::socket_address>&& address)
@@ -10972,11 +10972,11 @@ namespace vitex
 				vsocket_poll->set_value("finish_sync", (int)network::socket_poll::finish_sync);
 
 				auto vsocket_protocol = vm->set_enum("socket_protocol");
-				vsocket_protocol->set_value("ip", (int)network::socket_protocol::IP);
-				vsocket_protocol->set_value("icmp", (int)network::socket_protocol::ICMP);
-				vsocket_protocol->set_value("tcp", (int)network::socket_protocol::TCP);
-				vsocket_protocol->set_value("udp", (int)network::socket_protocol::UDP);
-				vsocket_protocol->set_value("raw", (int)network::socket_protocol::RAW);
+				vsocket_protocol->set_value("ip", (int)network::socket_protocol::ip);
+				vsocket_protocol->set_value("icmp", (int)network::socket_protocol::icmp);
+				vsocket_protocol->set_value("tcp", (int)network::socket_protocol::tcp);
+				vsocket_protocol->set_value("udp", (int)network::socket_protocol::udp);
+				vsocket_protocol->set_value("raw", (int)network::socket_protocol::raw);
 
 				auto vsocket_type = vm->set_enum("socket_type");
 				vsocket_type->set_value("stream", (int)network::socket_type::stream);
@@ -10985,9 +10985,10 @@ namespace vitex
 				vsocket_type->set_value("reliably_delivered_message", (int)network::socket_type::reliably_delivered_message);
 				vsocket_type->set_value("sequence_packet_stream", (int)network::socket_type::sequence_packet_stream);
 
-				auto vdns_type = vm->set_enum("dns_type");
-				vdns_type->set_value("connect", (int)network::dns_type::connect);
-				vdns_type->set_value("listen", (int)network::dns_type::listen);
+				auto vdns_check = vm->set_enum("dns_check");
+				vdns_check->set_value("connect", (int)network::dns_check::connect);
+				vdns_check->set_value("secure_connect", (int)network::dns_check::secure_connect);
+				vdns_check->set_value("listen", (int)network::dns_check::listen);
 
 				auto vsocket_address = vm->set_struct_trivial<network::socket_address>("socket_address");
 				vsocket_address->set_constructor<network::socket_address>("void f()");
@@ -11000,7 +11001,7 @@ namespace vitex
 				vsocket_address->set_method("int32 get_family() const", &network::socket_address::get_family);
 				vsocket_address->set_method("int32 get_type() const", &network::socket_address::get_type);
 				vsocket_address->set_method("int32 get_protocol() const", &network::socket_address::get_protocol);
-				vsocket_address->set_method("dns_type get_resolver_type() const", &network::socket_address::get_resolver_type);
+				vsocket_address->set_method("dns_check get_resolver_type() const", &network::socket_address::get_resolver_type);
 				vsocket_address->set_method("socket_protocol get_protocol_type() const", &network::socket_address::get_protocol_type);
 				vsocket_address->set_method("socket_type get_socket_type() const", &network::socket_address::get_socket_type);
 				vsocket_address->set_method("bool is_valid() const", &network::socket_address::is_valid);
@@ -11157,8 +11158,8 @@ namespace vitex
 				VDNS->set_method_extern("promise<string>@ reverse_lookup_deferred(const string_view&in, const string_view&in = string_view())", &VI_SPROMISIFY_REF(dns_reverse_lookup_deferred, string));
 				VDNS->set_method_extern("string reverse_address_lookup(const socket_address&in)", &VI_EXPECTIFY(network::dns::reverse_address_lookup));
 				VDNS->set_method_extern("promise<string>@ reverse_address_lookup_deferred(const socket_address&in)", &VI_SPROMISIFY_REF(dns_reverse_address_lookup_deferred, string));
-				VDNS->set_method_extern("socket_address lookup(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_EXPECTIFY(network::dns::lookup));
-				VDNS->set_method_extern("promise<socket_address>@ lookup_deferred(const string_view&in, const string_view&in, dns_type, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_SPROMISIFY_REF(dns_lookup_deferred, socket_address));
+				VDNS->set_method_extern("socket_address lookup(const string_view&in, const string_view&in, dns_check, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_EXPECTIFY(network::dns::lookup));
+				VDNS->set_method_extern("promise<socket_address>@ lookup_deferred(const string_view&in, const string_view&in, dns_check, socket_protocol = socket_protocol::tcp, socket_type = socket_type::stream)", &VI_SPROMISIFY_REF(dns_lookup_deferred, socket_address));
 				VDNS->set_method_static("dns@+ get()", &network::dns::get);
 
 				auto vmultiplexer = vm->set_class<network::multiplexer>("multiplexer", false);

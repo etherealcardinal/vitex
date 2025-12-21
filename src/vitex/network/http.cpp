@@ -6916,7 +6916,7 @@ namespace vitex
 				core::string hostname = origin.hostname;
 				core::string port = origin.port > 0 ? core::to_string(origin.port) : core::string(secure ? "443" : "80");
 				int32_t verify_peers = (secure ? (options.verify_peers >= 0 ? options.verify_peers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
-				return dns::get()->lookup_deferred(hostname, port, dns_type::connect, socket_protocol::TCP, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
+				return dns::get()->lookup_deferred(hostname, port, dns_check::connect, socket_protocol::tcp, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
 				{
 					if (!address)
 						return core::expects_promise_system<response_frame>(address.error());

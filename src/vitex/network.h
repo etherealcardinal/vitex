@@ -64,11 +64,11 @@ namespace vitex
 
 		enum class socket_protocol
 		{
-			IP,
-			ICMP,
-			TCP,
-			UDP,
-			RAW
+			ip,
+			icmp,
+			tcp,
+			udp,
+			raw
 		};
 
 		enum class socket_type
@@ -80,9 +80,10 @@ namespace vitex
 			sequence_packet_stream
 		};
 
-		enum class dns_type
+		enum class dns_check
 		{
 			connect,
+			secure_connect,
 			listen
 		};
 
@@ -219,7 +220,7 @@ namespace vitex
 			int32_t get_family() const noexcept;
 			int32_t get_type() const noexcept;
 			int32_t get_protocol() const noexcept;
-			dns_type get_resolver_type() const noexcept;
+			dns_check get_resolver_type() const noexcept;
 			socket_protocol get_protocol_type() const noexcept;
 			socket_type get_socket_type() const noexcept;
 			bool is_valid() const noexcept;
@@ -393,8 +394,8 @@ namespace vitex
 			core::expects_promise_system<core::string> reverse_lookup_deferred(const std::string_view& hostname, const std::string_view& service = std::string_view());
 			core::expects_system<core::string> reverse_address_lookup(const socket_address& address);
 			core::expects_promise_system<core::string> reverse_address_lookup_deferred(const socket_address& address);
-			core::expects_system<socket_address> lookup(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto = socket_protocol::TCP, socket_type type = socket_type::stream);
-			core::expects_promise_system<socket_address> lookup_deferred(const std::string_view& hostname, const std::string_view& service, dns_type resolver, socket_protocol proto = socket_protocol::TCP, socket_type type = socket_type::stream);
+			core::expects_system<socket_address> lookup(const std::string_view& hostname, const std::string_view& service, dns_check resolver, socket_protocol proto = socket_protocol::tcp, socket_type type = socket_type::stream);
+			core::expects_promise_system<socket_address> lookup_deferred(const std::string_view& hostname, const std::string_view& service, dns_check resolver, socket_protocol proto = socket_protocol::tcp, socket_type type = socket_type::stream);
 		};
 
 		class multiplexer final : public core::singleton<multiplexer>
