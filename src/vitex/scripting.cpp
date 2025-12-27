@@ -4815,7 +4815,8 @@ namespace vitex
 			const char* temp = 0;
 			int line = base->GetLineNumber(0, 0, &temp);
 
-			core::string file = temp ? temp : "";
+			std::string_view full_file = temp ? temp : "";
+			core::string file = core::string(full_file);
 			size_t r = file.find_last_of("\\/");
 			if (r != core::string::npos)
 				file = file.substr(r + 1);
@@ -4843,40 +4844,42 @@ namespace vitex
 					else if (bp.needs_adjusting && bp.name == file)
 					{
 						const char* sectionName;
-						int lowest_line = bp.line + 1, next_line = bp.line - 1, row;
-						function->GetDeclaredAt(&sectionName, &row, 0);
-						std::string_view entry_file = sectionName ? sectionName : "";
-						size_t r = entry_file.find_last_of("\\/");
-						if (r != std::string_view::npos)
-							entry_file = entry_file.substr(r + 1);
-						if (entry_file == file)
-							lowest_line = std::min(row, lowest_line);
-
-						int line_entries = function->GetLineEntryCount();
-						for (int i = 0; i < line_entries; i++)
+						function->GetDeclaredAt(&sectionName, nullptr, nullptr);
+						int min_line = std::numeric_limits<int>::max();
+						int max_line = std::numeric_limits<int>::min();
+						int best_line = -1;
+						for (int i = 0; i < function->GetLineEntryCount(); i++)
 						{
-							function->GetLineEntry(i, &row, 0, &sectionName, 0);
-							entry_file = sectionName ? sectionName : "";
-							size_t r = entry_file.find_last_of("\\/");
-							if (r != std::string_view::npos)
-								entry_file = entry_file.substr(r + 1);
-							if (entry_file != file)
+							int line;
+							function->GetLineEntry(i, &line, 0, &sectionName, 0);
+							std::string_view entry_file = sectionName ? sectionName : "";
+							if (entry_file != full_file)
 								continue;
 
-							lowest_line = std::min(row, lowest_line);
-							if (row >= bp.line && (row < next_line || next_line < bp.line))
-								next_line = row;
+							if (line == bp.line)
+							{
+								min_line = max_line = best_line = line;
+								break;
+							}
+
+							min_line = std::min(min_line, line);
+							max_line = std::max(max_line, line);
+							int d1 = std::abs(min_line - line);
+							int d2 = std::abs(max_line - line);
+							int d3 = best_line < 0 ? -1 : std::abs(best_line - line);
+							if (d3 > d1 || d3 > d2)
+								best_line = (d1 > d2 ? max_line : min_line);
 						}
 
-						if (lowest_line <= bp.line && next_line >= bp.line)
+						if (min_line <= bp.line && bp.line <= max_line && std::abs(best_line - line) < 10)
 						{
 							bp.needs_adjusting = false;
-							if (next_line != bp.line)
+							if (best_line != bp.line)
 							{
 								core::string_stream stream;
-								stream << "  moving break point " << n << " in file '" << file << "' to next line with code at line " << next_line << std::endl;
+								stream << "  moving break point " << n << " in file '" << file << "' to next best line with code at line " << best_line << std::endl;
 								output(stream.str());
-								bp.line = next_line;
+								bp.line = best_line;
 							}
 						}
 					}
