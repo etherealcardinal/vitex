@@ -10029,6 +10029,7 @@ namespace vitex
 
 		void os::process::abort()
 		{
+			std::cout << std::flush;
 #ifdef NDEBUG
 			VI_DEBUG("os process terminate on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
 			std::terminate();
@@ -10040,12 +10041,14 @@ namespace vitex
 		void os::process::exit(int code)
 		{
 			VI_DEBUG("os process exit:%i on thread %s", code, get_thread_id(std::this_thread::get_id()).c_str());
+			std::cout << std::flush;
 			std::exit(code);
 		}
 		void os::process::interrupt()
 		{
 #ifndef NDEBUG
 			VI_DEBUG("os process suspend on thread %s", get_thread_id(std::this_thread::get_id()).c_str());
+			std::cout << std::flush;
 #ifndef VI_MICROSOFT
 #ifndef SIGTRAP
 			__debugbreak();
