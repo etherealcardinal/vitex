@@ -767,9 +767,9 @@ namespace vitex
 			uint256 operator-() const;
 			const uint128& high() const;
 			const uint128& low() const;
-			void encode(uint8_t data[16]) const;
-			void encode_compact(uint8_t data[16], size_t* data_size) const;
-			void decode(const uint8_t data[16]);
+			void encode(uint8_t data[32]) const;
+			void encode_compact(uint8_t data[32], size_t* data_size) const;
+			void decode(const uint8_t data[32]);
 			void decode_compact(const uint8_t* data, size_t data_size);
 			uint16_t bits() const;
 			uint16_t bytes() const;

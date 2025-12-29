@@ -1984,7 +1984,7 @@ namespace vitex
 		{
 			return lower;
 		}
-		void uint256::encode(uint8_t data[16]) const
+		void uint256::encode(uint8_t data[32]) const
 		{
 			VI_ASSERT(data != nullptr, "data should be set");
 			uint64_t array[4] =
@@ -2003,7 +2003,7 @@ namespace vitex
 			};
 			memcpy((char*)data, array, sizeof(array));
 		}
-		void uint256::encode_compact(uint8_t data[16], size_t* data_size) const
+		void uint256::encode_compact(uint8_t data[32], size_t* data_size) const
 		{
 			VI_ASSERT(data != nullptr, "data should be set");
 			uint8_t intermediate[sizeof(uint256)];
@@ -2014,7 +2014,7 @@ namespace vitex
 			if (data_size != nullptr)
 				*data_size = size;
 		}
-		void uint256::decode(const uint8_t data[16])
+		void uint256::decode(const uint8_t data[32])
 		{
 			VI_ASSERT(data != nullptr, "value should be set");
 			uint64_t array[4] = { 0 };
