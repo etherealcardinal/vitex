@@ -2393,9 +2393,9 @@ namespace vitex
 			static bool ends_of(const std::string_view& other, const std::string_view& value);
 			static bool ends_not_of(const std::string_view& other, const std::string_view& value);
 			static bool consists_of(const std::string_view& other, const std::string_view& alphabet);
-			static bool has_integer(const std::string_view& other);
-			static bool has_number(const std::string_view& other);
-			static bool has_decimal(const std::string_view& other);
+			static bool has_integer(const std::string_view& other, int base = 10);
+			static bool has_number(const std::string_view& other, int base = 10);
+			static bool has_decimal(const std::string_view& other, int base = 10);
 			static string text(const char* format, ...);
 			static wide_string to_wide(const std::string_view& other);
 			static vector<string> split(const std::string_view& other, const std::string_view& with, size_t start = 0U);
@@ -2415,6 +2415,7 @@ namespace vitex
 			static bool is_hex_or_dot_or_whitespace(char symbol);
 			static bool is_alphabetic(char symbol);
 			static bool is_numeric(char symbol);
+			static bool is_base_numeric(char symbol, int base);
 			static bool is_alphanum(char symbol);
 			static bool is_whitespace(char symbol);
 			static char to_lower_literal(char symbol);

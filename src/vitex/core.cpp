@@ -2157,6 +2157,9 @@ namespace vitex
 		}
 		bool decimal::is_zero() const
 		{
+			if (is_nan())
+				return false;
+
 			for (char item : source)
 			{
 				if (item != '0')
@@ -2179,11 +2182,11 @@ namespace vitex
 		}
 		bool decimal::is_integer() const
 		{
-			return !length;
+			return !is_nan() && !length;
 		}
 		bool decimal::is_fractional() const
 		{
-			return length > 0;
+			return !is_nan() && length > 0;
 		}
 		bool decimal::is_safe_number() const
 		{
@@ -5291,16 +5294,10 @@ namespace vitex
 		}
 		bool stringify::starts_with(const std::string_view& other, const std::string_view& value, size_t offset)
 		{
-			if (other.size() < value.size())
+			if (other.size() < offset || other.size() - offset < value.size())
 				return false;
 
-			for (size_t i = offset; i < value.size(); i++)
-			{
-				if (value[i] != other.at(i))
-					return false;
-			}
-
-			return true;
+			return memcmp(other.data() + offset, value.data(), value.size()) == 0;
 		}
 		bool stringify::starts_of(const std::string_view& other, const std::string_view& value, size_t offset)
 		{
@@ -5387,9 +5384,9 @@ namespace vitex
 			}
 			return true;
 		}
-		bool stringify::has_integer(const std::string_view& other)
+		bool stringify::has_integer(const std::string_view& other, int base)
 		{
-			if (other.empty() || (other.size() == 1 && !is_numeric(other.front())))
+			if (other.empty() || (other.size() == 1 && !is_base_numeric(other.front(), base)))
 				return false;
 
 			size_t digits = 0;
@@ -5397,7 +5394,7 @@ namespace vitex
 			for (; i < other.size(); i++)
 			{
 				char v = other[i];
-				if (!is_numeric(v))
+				if (!is_base_numeric(v, base))
 					return false;
 
 				++digits;
@@ -5405,9 +5402,9 @@ namespace vitex
 
 			return digits > 0;
 		}
-		bool stringify::has_number(const std::string_view& other)
+		bool stringify::has_number(const std::string_view& other, int base)
 		{
-			if (other.empty() || (other.size() == 1 && !is_numeric(other.front())))
+			if (other.empty() || (other.size() == 1 && !is_base_numeric(other.front(), base)))
 				return false;
 
 			size_t digits = 0, points = 0;
@@ -5415,7 +5412,7 @@ namespace vitex
 			for (; i < other.size(); i++)
 			{
 				char v = other[i];
-				if (is_numeric(v))
+				if (is_base_numeric(v, base))
 				{
 					++digits;
 					continue;
@@ -5432,18 +5429,18 @@ namespace vitex
 
 			return digits > 0 && points < 2;
 		}
-		bool stringify::has_decimal(const std::string_view& other)
+		bool stringify::has_decimal(const std::string_view& other, int base)
 		{
 			auto f = find(other, '.');
 			if (!f.found)
-				return has_integer(other) && other.size() >= 19;
+				return has_integer(other, base) && other.size() >= 19;
 
 			auto D1 = other.substr(0, f.end - 1);
-			if (D1.empty() || !has_integer(D1))
+			if (D1.empty() || !has_integer(D1, base))
 				return false;
 
 			auto D2 = other.substr(f.end + 1, other.size() - f.end - 1);
-			if (D2.empty() || !has_integer(D2))
+			if (D2.empty() || !has_integer(D2, base))
 				return false;
 
 			return D1.size() >= 19 || D2.size() > 2;
@@ -5475,6 +5472,15 @@ namespace vitex
 		bool stringify::is_numeric(char symbol)
 		{
 			return std::isdigit(static_cast<uint8_t>(symbol)) != 0;
+		}
+		bool stringify::is_base_numeric(char symbol, int base)
+		{
+			if (std::isdigit(static_cast<uint8_t>(symbol)))
+				return (symbol - '0') < base;
+			else if (std::isalpha(static_cast<uint8_t>(symbol)))
+				return (std::toupper(static_cast<uint8_t>(symbol)) - 'A' + 10) < base;
+
+			return false;
 		}
 		bool stringify::is_alphanum(char symbol)
 		{

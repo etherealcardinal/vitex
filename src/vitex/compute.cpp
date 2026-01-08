@@ -947,13 +947,10 @@ namespace vitex
 		uint128::uint128(const std::string_view& text) : uint128(text, 10)
 		{
 		}
-		uint128::uint128(const std::string_view& text, uint8_t base)
+		uint128::uint128(const std::string_view& text, uint8_t base) : lower(0), upper(0)
 		{
 			if (text.empty())
-			{
-				lower = upper = 0;
 				return;
-			}
 
 			size_t size = text.size();
 			char* data = (char*)text.data();
@@ -1033,8 +1030,26 @@ namespace vitex
 					break;
 				}
 				default:
-					VI_ASSERT(false, "invalid from string base: %i", (int)base);
+				{
+					uint128 power(1);
+					int64_t pos = (int64_t)text.size() - 1;
+					while (pos >= 0)
+					{
+						uint8_t v = core::stringify::to_lower_literal(text[pos]);
+						if ('0' <= v && v <= '9')
+						{
+							*this += (text[pos] - '0') * power;
+							power *= base;
+						}
+						else if ('a' <= v && v <= 'z')
+						{
+							*this += (v - 'a' + 10) * power;
+							power *= base;
+						}
+						pos--;
+					}
 					break;
+				}
 			}
 		}
 		uint128::operator bool() const
@@ -1546,21 +1561,23 @@ namespace vitex
 		uint256::uint256(const std::string_view& text) : uint256(text, 10)
 		{
 		}
-		uint256::uint256(const std::string_view& text, uint8_t base)
+		uint256::uint256(const std::string_view& text, uint8_t base) : lower(0), upper(0)
 		{
-			*this = 0;
 			uint256 power(1);
-			uint8_t digit;
 			int64_t pos = (int64_t)text.size() - 1;
 			while (pos >= 0)
 			{
-				digit = 0;
-				if ('0' <= text[pos] && text[pos] <= '9')
-					digit = text[pos] - '0';
-				else if ('a' <= text[pos] && text[pos] <= 'z')
-					digit = text[pos] - 'a' + 10;
-				*this += digit * power;
-				power *= base;
+				uint8_t v = core::stringify::to_lower_literal(text[pos]);
+				if ('0' <= v && v <= '9')
+				{
+					*this += (text[pos] - '0') * power;
+					power *= base;
+				}
+				else if ('a' <= v && v <= 'z')
+				{
+					*this += (v - 'a' + 10) * power;
+					power *= base;
+				}
 				pos--;
 			}
 		}
