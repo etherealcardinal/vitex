@@ -6841,7 +6841,11 @@ namespace vitex
 			}
 			void client::manage_keep_alive()
 			{
-				auto connection = response.headers.find("Connection");
+				auto connection = request.headers.find("Connection");
+				if (connection == request.headers.end() || connection->second.size() != 1 || !core::stringify::case_equals(connection->second.front(), "keep-alive"))
+					return disable_reusability();
+
+				connection = response.headers.find("Connection");
 				if (connection == response.headers.end())
 					return enable_reusability();
 
@@ -6878,16 +6882,15 @@ namespace vitex
 			void client::receive(socket_poll event, const uint8_t* leftover_buffer, size_t leftover_size)
 			{
 				resolver->prepare_for_response_parsing(&response);
-				if (resolver->parse_response((uint8_t*)response.content.data.data(), response.content.data.size(), 0) >= 0)
-				{
-					response.content.prepare(response.headers, leftover_buffer, leftover_size);
-					manage_keep_alive();
-					report(core::expectation::met);
-				}
-				else if (packet::is_error_or_skip(event))
-					report(core::system_exception("read failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
-				else
-					report(core::system_exception(core::stringify::text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, response.content.data.size()), response.content.data.data()), std::make_error_condition(std::errc::bad_message)));
+				if (packet::is_error_or_skip(event))
+					return report(core::system_exception("read failed", std::make_error_condition(event == socket_poll::timeout ? std::errc::timed_out : std::errc::connection_aborted)));
+
+				if (resolver->parse_response((uint8_t*)response.content.data.data(), response.content.data.size(), 0) < 0)
+					return report(core::system_exception(core::stringify::text("http chunk parse error: %.*s ...", (int)std::min<size_t>(64, response.content.data.size()), response.content.data.data()), std::make_error_condition(std::errc::bad_message)));
+				
+				response.content.prepare(response.headers, leftover_buffer, leftover_size);
+				manage_keep_alive();
+				report(core::expectation::met);
 			}
 
 			core::expects_promise_system<response_frame> fetch(const std::string_view& location, const std::string_view& method, const fetch_frame& options)
@@ -6916,7 +6919,7 @@ namespace vitex
 				core::string hostname = origin.hostname;
 				core::string port = origin.port > 0 ? core::to_string(origin.port) : core::string(secure ? "443" : "80");
 				int32_t verify_peers = (secure ? (options.verify_peers >= 0 ? options.verify_peers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
-				return dns::get()->lookup_deferred(hostname, port, dns_check::connect, socket_protocol::tcp, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
+				return dns::get()->lookup_deferred(hostname, port, secure ? dns_check::secure_connect : dns_check::connect, socket_protocol::tcp, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
 				{
 					if (!address)
 						return core::expects_promise_system<response_frame>(address.error());
