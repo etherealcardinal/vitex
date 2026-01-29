@@ -984,17 +984,17 @@ namespace vitex
 				return exception::pointer(EXCEPTION_ACCESSINVALID);
 			}
 
-			any::any(virtual_machine* _Engine) noexcept : engine(_Engine)
+			any::any(virtual_machine* _Engine) : engine(_Engine)
 			{
 				value.type_id = 0;
 				value.integer = 0;
 				engine->notify_of_new_object(this, engine->get_type_info_by_name(TYPENAME_ANY));
 			}
-			any::any(void* ref, int ref_type_id, virtual_machine* _Engine) noexcept : any(_Engine)
+			any::any(void* ref, int ref_type_id, virtual_machine* _Engine) : any(_Engine)
 			{
 				store(ref, ref_type_id);
 			}
-			any::any(const any& other) noexcept : any(other.engine)
+			any::any(const any& other) : any(other.engine)
 			{
 				if ((other.value.type_id & (size_t)type_id::mask_object_t))
 				{
@@ -1014,11 +1014,11 @@ namespace vitex
 				else
 					value.integer = other.value.integer;
 			}
-			any::~any() noexcept
+			any::~any()
 			{
 				free_object();
 			}
-			any& any::operator=(const any& other) noexcept
+			any& any::operator=(const any& other)
 			{
 				if ((other.value.type_id & (size_t)type_id::mask_object_t))
 				{
@@ -8821,7 +8821,7 @@ namespace vitex
 					varray->set_constructor_extern<array, asITypeInfo*>("array<t>@ f(int&in)", &array::create);
 					varray->set_constructor_extern<array, asITypeInfo*, size_t>("array<t>@ f(int&in, usize) explicit", &array::create);
 					varray->set_constructor_extern<array, asITypeInfo*, size_t, void*>("array<t>@ f(int&in, usize, const t&in)", &array::create);
-					varray->set_behaviour_address("array<t>@ f(int&in, int&in) {repeat t}", behaviours::list_factory, list_factory_call, convention::cdecl_call);
+					varray->set_behaviour_address("array<t>@ f(int&in, int&in) {repeat t}", behaviours::list_factory, *list_factory_call, convention::cdecl_call);
 					varray->set_enum_refs(&array::enum_references);
 					varray->set_release_refs(&array::release_references);
 					varray->set_method("bool opEquals(const array<t>&in) const", &array::operator==);
@@ -8873,7 +8873,7 @@ namespace vitex
 					vcomplex->set_constructor_extern("void f(const complex &in)", &complex::copy_constructor);
 					vcomplex->set_constructor_extern("void f(float)", &complex::conv_constructor);
 					vcomplex->set_constructor_extern("void f(float, float)", &complex::init_constructor);
-					vcomplex->set_behaviour_address("void f(const int &in) {float, float}", behaviours::list_construct, list_constructor_call, convention::cdecl_call_obj_first);
+					vcomplex->set_behaviour_address("void f(const int &in) {float, float}", behaviours::list_construct, *list_constructor_call, convention::cdecl_call_obj_first);
 					vcomplex->set_method("complex &opAddAssign(const complex &in)", &complex::operator+=);
 					vcomplex->set_method("complex &opSubAssign(const complex &in)", &complex::operator-=);
 					vcomplex->set_method("complex &opMulAssign(const complex &in)", &complex::operator*=);
@@ -8920,8 +8920,8 @@ namespace vitex
 				auto list_factory_call = bridge::function_generic_call(&dictionary::list_factory);
 				{
 					auto vdictionary = vm->set_class<dictionary>("dictionary", true);
-					vdictionary->set_behaviour_address("dictionary@ f()", behaviours::factory, factory_call, convention::generic_call);
-					vdictionary->set_behaviour_address("dictionary @f(int &in) {repeat {string, ?}}", behaviours::list_factory, list_factory_call, convention::generic_call);
+					vdictionary->set_behaviour_address("dictionary@ f()", behaviours::factory, *factory_call, convention::generic_call);
+					vdictionary->set_behaviour_address("dictionary @f(int &in) {repeat {string, ?}}", behaviours::list_factory, *list_factory_call, convention::generic_call);
 					vdictionary->set_enum_refs(&dictionary::enum_references);
 					vdictionary->set_release_refs(&dictionary::release_references);
 					vdictionary->set_method("dictionary &opAssign(const dictionary &in)", &dictionary::operator=);

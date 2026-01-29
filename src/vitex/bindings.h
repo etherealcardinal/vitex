@@ -506,11 +506,11 @@ namespace vitex
 				dynamic value;
 
 			public:
-				any(virtual_machine* engine) noexcept;
-				any(void* ref, int ref_type_id, virtual_machine* engine) noexcept;
-				any(const any&) noexcept;
-				~any() noexcept;
-				any& operator= (const any&) noexcept;
+				any(virtual_machine* engine);
+				any(void* ref, int ref_type_id, virtual_machine* engine);
+				any(const any&);
+				~any();
+				any& operator= (const any&);
 				int copy_from(const any* other);
 				void store(void* ref, int ref_type_id);
 				bool retrieve(void* ref, int ref_type_id) const;

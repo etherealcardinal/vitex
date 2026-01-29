@@ -1717,33 +1717,31 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_operator_copy_address(asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_operator_copy_address(const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
 
 			core::string decl = core::stringify::text("%s& opAssign(const %s &in)", get_type_name().data(), get_type_name().data());
 			VI_TRACE("asc register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
-			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.c_str(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.c_str(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_behaviour_address(const std::string_view& decl, behaviours behave, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_behaviour_address(const std::string_view& decl, behaviours behave, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
 			VI_TRACE("asc register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
-			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), (asEBehaviours)behave, decl.data(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), (asEBehaviours)behave, decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
@@ -1784,31 +1782,29 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_operator_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_operator_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			return set_method_address(decl, value, type);
 		}
-		expects_vm<void> base_class::set_method_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_method_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
 			VI_TRACE("asc register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
-			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.data(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_method_static_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_method_static_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1817,7 +1813,7 @@ namespace vitex
 			const char* name_space = engine->GetDefaultNamespace();
 			const char* scope = this->type->GetNamespace();
 			engine->SetDefaultNamespace(scope[0] == '\0' ? get_type_name().data() : core::string(scope).append("::").append(get_name()).c_str());
-			int r = engine->RegisterGlobalFunction(decl.data(), *value, (asECallConvTypes)type);
+			int r = engine->RegisterGlobalFunction(decl.data(), value, (asECallConvTypes)type);
 			engine->SetDefaultNamespace(name_space);
 
 			return function_factory::to_return(r);
@@ -1825,47 +1821,44 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_constructor_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_constructor_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 			VI_TRACE("asc register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_CONSTRUCT, decl.data(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_CONSTRUCT, decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_constructor_list_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> base_class::set_constructor_list_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 			VI_TRACE("asc register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_LIST_CONSTRUCT, decl.data(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_LIST_CONSTRUCT, decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> base_class::set_destructor_address(const std::string_view& decl, asSFuncPtr* value)
+		expects_vm<void> base_class::set_destructor_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 			VI_TRACE("asc register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_DESTRUCT, decl.data(), *value, asCALL_CDECL_OBJFIRST));
+			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), asBEHAVE_DESTRUCT, decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
@@ -6524,14 +6517,13 @@ namespace vitex
 			return virtual_exception(virtual_error::not_supported);
 #endif
 		}
-		expects_vm<void> virtual_machine::set_function_address(const std::string_view& decl, asSFuncPtr* value, convention type)
+		expects_vm<void> virtual_machine::set_function_address(const std::string_view& decl, const asSFuncPtr& value, convention type)
 		{
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
-			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
 			VI_TRACE("asc register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)value);
 #ifdef VI_ANGELSCRIPT
-			return function_factory::to_return(engine->RegisterGlobalFunction(decl.data(), *value, (asECallConvTypes)type));
+			return function_factory::to_return(engine->RegisterGlobalFunction(decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
 #endif
