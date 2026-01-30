@@ -1726,7 +1726,7 @@ namespace vitex
 			VI_ASSERT(engine != nullptr, "engine should be set");
 
 			core::string decl = core::stringify::text("%s& opAssign(const %s &in)", get_type_name().data(), get_type_name().data());
-			VI_TRACE("asc register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " op-copy funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.c_str(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1740,7 +1740,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " behaviour funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 			return function_factory::to_return(engine->RegisterObjectBehaviour(get_type_name().data(), (asEBehaviours)behave, decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1794,7 +1794,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 			return function_factory::to_return(engine->RegisterObjectMethod(get_type_name().data(), decl.data(), value, (asECallConvTypes)type));
 #else
 			return virtual_exception(virtual_error::not_supported);
@@ -1808,7 +1808,7 @@ namespace vitex
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " static funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 
 			const char* name_space = engine->GetDefaultNamespace();
 			const char* scope = this->type->GetNamespace();
@@ -1826,7 +1826,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1840,7 +1840,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " list-constructor funcaddr(%i) %i bytes at 0x%" PRIXPTR, (void*)this, (int)type, (int)decl.size(), (void*)&value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -1854,7 +1854,7 @@ namespace vitex
 			VI_ASSERT(is_valid(), "class should be valid");
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(core::stringify::is_cstring(get_type_name()), "typename should be set");
-			VI_TRACE("asc register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register class 0x%" PRIXPTR " destructor funcaddr %i bytes at 0x%" PRIXPTR, (void*)this, (int)decl.size(), (void*)&value);
 #ifdef VI_ANGELSCRIPT
 			asIScriptEngine* engine = vm->get_engine();
 			VI_ASSERT(engine != nullptr, "engine should be set");
@@ -6521,7 +6521,7 @@ namespace vitex
 		{
 			VI_ASSERT(core::stringify::is_cstring(decl), "decl should be set");
 			VI_ASSERT(engine != nullptr, "engine should be set");
-			VI_TRACE("asc register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)value);
+			VI_TRACE("asc register funcaddr(%i) %i bytes at 0x%" PRIXPTR, (int)type, (int)decl.size(), (void*)&value);
 #ifdef VI_ANGELSCRIPT
 			return function_factory::to_return(engine->RegisterGlobalFunction(decl.data(), value, (asECallConvTypes)type));
 #else
