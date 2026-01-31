@@ -826,6 +826,9 @@ namespace vitex
 		public:
 			function(asIScriptFunction* base) noexcept;
 			function(const function& base) noexcept;
+			function(function&& base) noexcept;
+			function& operator=(const function& base) noexcept;
+			function& operator=(function&& base) noexcept;
 			void add_ref() const;
 			void release();
 			int get_id() const;

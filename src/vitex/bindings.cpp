@@ -30,20 +30,20 @@ namespace vitex
 		{
 			void pointer_to_handle_cast(void* from, void** to, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::handle_t))
+				if (!(type_id & (int)type_id::handle_t))
 					return;
 
-				if (!(type_id & (size_t)type_id::mask_object_t))
+				if (!(type_id & (int)type_id::mask_object_t))
 					return;
 
 				*to = from;
 			}
 			void handle_to_handle_cast(void* from, void** to, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::handle_t))
+				if (!(type_id & (int)type_id::handle_t))
 					return;
 
-				if (!(type_id & (size_t)type_id::mask_object_t))
+				if (!(type_id & (int)type_id::mask_object_t))
 					return;
 
 				virtual_machine* vm = virtual_machine::get();
@@ -55,10 +55,10 @@ namespace vitex
 			}
 			void* handle_to_pointer_cast(void* from, int type_id)
 			{
-				if (!(type_id & (size_t)type_id::handle_t))
+				if (!(type_id & (int)type_id::handle_t))
 					return nullptr;
 
-				if (!(type_id & (size_t)type_id::mask_object_t))
+				if (!(type_id & (int)type_id::mask_object_t))
 					return nullptr;
 
 				return *reinterpret_cast<void**>(from);
@@ -883,7 +883,6 @@ namespace vitex
 				core::string_stream stream;
 				stream << '\n';
 
-				scripting::virtual_machine* vm = context->get_vm();
 				size_t callstack_size = context->get_callstack_size();
 				size_t top_callstack_size = callstack_size;
 				for (size_t i = 0; i < callstack_size; i++)
@@ -996,7 +995,7 @@ namespace vitex
 			}
 			any::any(const any& other) : any(other.engine)
 			{
-				if ((other.value.type_id & (size_t)type_id::mask_object_t))
+				if ((other.value.type_id & (int)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(other.value.type_id);
 					if (info.is_valid())
@@ -1004,12 +1003,12 @@ namespace vitex
 				}
 
 				value.type_id = other.value.type_id;
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 				{
 					value.object = other.value.object;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 					value.object = engine->create_object_copy(other.value.object, engine->get_type_info_by_id(value.type_id));
 				else
 					value.integer = other.value.integer;
@@ -1020,7 +1019,7 @@ namespace vitex
 			}
 			any& any::operator=(const any& other)
 			{
-				if ((other.value.type_id & (size_t)type_id::mask_object_t))
+				if ((other.value.type_id & (int)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(other.value.type_id);
 					if (info.is_valid())
@@ -1030,12 +1029,12 @@ namespace vitex
 				free_object();
 				value.type_id = other.value.type_id;
 
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 				{
 					value.object = other.value.object;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 					value.object = engine->create_object_copy(other.value.object, engine->get_type_info_by_id(value.type_id));
 				else
 					value.integer = other.value.integer;
@@ -1052,7 +1051,7 @@ namespace vitex
 			}
 			void any::store(void* ref, int ref_type_id)
 			{
-				if ((ref_type_id & (size_t)type_id::mask_object_t))
+				if ((ref_type_id & (int)type_id::mask_object_t))
 				{
 					auto info = engine->get_type_info_by_id(ref_type_id);
 					if (info.is_valid())
@@ -1062,12 +1061,12 @@ namespace vitex
 				free_object();
 				value.type_id = ref_type_id;
 
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 				{
 					value.object = *(void**)ref;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(ref, engine->get_type_info_by_id(value.type_id));
 				}
@@ -1081,11 +1080,11 @@ namespace vitex
 			}
 			bool any::retrieve(void* ref, int ref_type_id) const
 			{
-				if (ref_type_id & (size_t)type_id::handle_t)
+				if (ref_type_id & (int)type_id::handle_t)
 				{
-					if ((value.type_id & (size_t)type_id::mask_object_t))
+					if ((value.type_id & (int)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::const_handle_t) && !(ref_type_id & (size_t)type_id::const_handle_t))
+						if ((value.type_id & (int)type_id::const_handle_t) && !(ref_type_id & (int)type_id::const_handle_t))
 							return false;
 
 						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref));
@@ -1097,7 +1096,7 @@ namespace vitex
 						return true;
 					}
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object_t)
+				else if (ref_type_id & (int)type_id::mask_object_t)
 				{
 					if (value.type_id == ref_type_id)
 					{
@@ -1120,11 +1119,11 @@ namespace vitex
 			}
 			void* any::get_address_of_object()
 			{
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 					return &value.object;
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 					return value.object;
-				else if (value.type_id <= (size_t)type_id::double_t || value.type_id & (size_t)type_id::mask_seqnbr_t)
+				else if (value.type_id <= (int)type_id::double_t || value.type_id & (int)type_id::mask_seqnbr_t)
 					return &value.integer;
 
 				return nullptr;
@@ -1135,7 +1134,7 @@ namespace vitex
 			}
 			void any::free_object()
 			{
-				if (value.type_id & (size_t)type_id::mask_object_t)
+				if (value.type_id & (int)type_id::mask_object_t)
 				{
 					auto type = engine->get_type_info_by_id(value.type_id);
 					engine->release_object(value.object, type);
@@ -1146,7 +1145,7 @@ namespace vitex
 			}
 			void any::enum_references(asIScriptEngine* in_engine)
 			{
-				if (value.object && (value.type_id & (size_t)type_id::mask_object_t))
+				if (value.object && (value.type_id & (int)type_id::mask_object_t))
 				{
 					auto sub_type = engine->get_type_info_by_id(value.type_id);
 					if ((sub_type.flags() & (size_t)object_behaviours::ref))
@@ -1228,7 +1227,7 @@ namespace vitex
 				precache();
 
 				virtual_machine* engine = obj_type.get_vm();
-				if (sub_type_id & (size_t)type_id::mask_object_t)
+				if (sub_type_id & (int)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = engine->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1237,13 +1236,13 @@ namespace vitex
 				if (!check_max_size(length))
 					return;
 
-				if ((obj_type.get_sub_type_id() & (size_t)type_id::mask_object_t) == 0)
+				if ((obj_type.get_sub_type_id() & (int)type_id::mask_object_t) == 0)
 				{
 					create_buffer(&buffer, length);
 					if (length > 0)
 						memcpy(at(0), (((asUINT*)buffer_ptr) + 1), (size_t)length * (size_t)element_size);
 				}
-				else if (obj_type.get_sub_type_id() & (size_t)type_id::handle_t)
+				else if (obj_type.get_sub_type_id() & (int)type_id::handle_t)
 				{
 					create_buffer(&buffer, length);
 					if (length > 0)
@@ -1253,9 +1252,9 @@ namespace vitex
 				}
 				else if (obj_type.get_sub_type().flags() & (size_t)object_behaviours::ref)
 				{
-					sub_type_id |= (size_t)type_id::handle_t;
+					sub_type_id |= (int)type_id::handle_t;
 					create_buffer(&buffer, length);
-					sub_type_id &= ~(size_t)type_id::handle_t;
+					sub_type_id &= ~(int)type_id::handle_t;
 
 					if (length > 0)
 						memcpy(buffer->data, (((asUINT*)buffer_ptr) + 1), (size_t)length * (size_t)element_size);
@@ -1284,7 +1283,7 @@ namespace vitex
 				obj_type.add_ref();
 				precache();
 
-				if (sub_type_id & (size_t)type_id::mask_object_t)
+				if (sub_type_id & (int)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1297,7 +1296,7 @@ namespace vitex
 					obj_type.get_vm()->notify_of_new_object(this, obj_type);
 #endif
 			}
-			array::array(const array& other) noexcept : obj_type(other.obj_type), buffer(nullptr), element_size(0), sub_type_id(-1)
+			array::array(const array& other) noexcept : core::reference<array>(), obj_type(other.obj_type), buffer(nullptr), element_size(0), sub_type_id(-1)
 			{
 				VI_ASSERT(obj_type.is_valid() && core::string(obj_type.get_name()) == TYPENAME_ARRAY, "array type is invalid");
 				obj_type.add_ref();
@@ -1317,7 +1316,7 @@ namespace vitex
 				obj_type.add_ref();
 				precache();
 
-				if (sub_type_id & (size_t)type_id::mask_object_t)
+				if (sub_type_id & (int)type_id::mask_object_t)
 					element_size = sizeof(asPWORD);
 				else
 					element_size = obj_type.get_vm()->get_size_of_primitive_type(sub_type_id).or_else(0);
@@ -1358,9 +1357,9 @@ namespace vitex
 				if (ptr == 0)
 					return;
 
-				if ((sub_type_id & ~(size_t)type_id::mask_seqnbr_t) && !(sub_type_id & (size_t)type_id::handle_t))
+				if ((sub_type_id & ~(int)type_id::mask_seqnbr_t) && !(sub_type_id & (int)type_id::handle_t))
 					obj_type.get_vm()->assign_object(ptr, value, obj_type.get_sub_type());
-				else if (sub_type_id & (size_t)type_id::handle_t)
+				else if (sub_type_id & (int)type_id::handle_t)
 				{
 					void* swap = *(void**)ptr;
 					*(void**)ptr = *(void**)value;
@@ -1368,13 +1367,13 @@ namespace vitex
 					if (swap)
 						obj_type.get_vm()->release_object(swap, obj_type.get_sub_type());
 				}
-				else if (sub_type_id == (size_t)type_id::bool_t || sub_type_id == (size_t)type_id::int8_t || sub_type_id == (size_t)type_id::uint8_t)
+				else if (sub_type_id == (int)type_id::bool_t || sub_type_id == (int)type_id::int8_t || sub_type_id == (int)type_id::uint8_t)
 					*(char*)ptr = *(char*)value;
-				else if (sub_type_id == (size_t)type_id::int16_t || sub_type_id == (size_t)type_id::uint16_t)
+				else if (sub_type_id == (int)type_id::int16_t || sub_type_id == (int)type_id::uint16_t)
 					*(short*)ptr = *(short*)value;
-				else if (sub_type_id == (size_t)type_id::int32_t || sub_type_id == (size_t)type_id::uint32_t || sub_type_id == (size_t)type_id::float_t || sub_type_id > (size_t)type_id::double_t)
+				else if (sub_type_id == (int)type_id::int32_t || sub_type_id == (int)type_id::uint32_t || sub_type_id == (int)type_id::float_t || sub_type_id > (int)type_id::double_t)
 					*(int*)ptr = *(int*)value;
-				else if (sub_type_id == (size_t)type_id::int64_t || sub_type_id == (size_t)type_id::uint64_t || sub_type_id == (size_t)type_id::double_t)
+				else if (sub_type_id == (int)type_id::int64_t || sub_type_id == (int)type_id::uint64_t || sub_type_id == (int)type_id::double_t)
 					*(double*)ptr = *(double*)value;
 			}
 			size_t array::size() const
@@ -1584,7 +1583,7 @@ namespace vitex
 					bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_OUTOFBOUNDS));
 					return nullptr;
 				}
-				else if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
+				else if ((sub_type_id & (int)type_id::mask_object_t) && !(sub_type_id & (int)type_id::handle_t))
 					return *(void**)(buffer->data + (size_t)element_size * index);
 
 				return buffer->data + (size_t)element_size * index;
@@ -1654,7 +1653,7 @@ namespace vitex
 			}
 			void array::create(sbuffer* buffer_ptr, size_t start, size_t end)
 			{
-				if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
+				if ((sub_type_id & (int)type_id::mask_object_t) && !(sub_type_id & (int)type_id::handle_t))
 				{
 					void** max = (void**)(buffer_ptr->data + end * sizeof(void*));
 					void** d = (void**)(buffer_ptr->data + start * sizeof(void*));
@@ -1680,7 +1679,7 @@ namespace vitex
 			}
 			void array::destroy(sbuffer* buffer_ptr, size_t start, size_t end)
 			{
-				if (sub_type_id & (size_t)type_id::mask_object_t)
+				if (sub_type_id & (int)type_id::mask_object_t)
 				{
 					virtual_machine* engine = obj_type.get_vm();
 					type_info sub_type = obj_type.get_sub_type();
@@ -1723,7 +1722,7 @@ namespace vitex
 				immediate_context* cmp_context = 0;
 				bool is_nested = false;
 
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
+				if (sub_type_id & ~(int)type_id::mask_seqnbr_t)
 				{
 					cmp_context = immediate_context::get();
 					if (cmp_context)
@@ -1766,9 +1765,9 @@ namespace vitex
 			}
 			bool array::less(const void* a, const void* b, immediate_context* context, scache* cache)
 			{
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
+				if (sub_type_id & ~(int)type_id::mask_seqnbr_t)
 				{
-					if (sub_type_id & (size_t)type_id::handle_t)
+					if (sub_type_id & (int)type_id::handle_t)
 					{
 						if (*(void**)a == 0)
 							return true;
@@ -1785,22 +1784,22 @@ namespace vitex
 					{
 						context->set_object((void*)a);
 						context->set_arg_object(0, (void*)b);
-					}, [&is_less](immediate_context* context) { is_less = (context->get_return_dword() < 0); });
+					}, [&is_less](immediate_context* context) { is_less = ((int)context->get_return_dword() < 0); });
 					return is_less;
 				}
 
 				switch (sub_type_id)
 				{
 #define COMPARE(t) *((t*)a) < *((t*)b)
-					case (size_t)type_id::bool_t: return COMPARE(bool);
-					case (size_t)type_id::int8_t: return COMPARE(signed char);
-					case (size_t)type_id::uint8_t: return COMPARE(unsigned char);
-					case (size_t)type_id::int16_t: return COMPARE(signed short);
-					case (size_t)type_id::uint16_t: return COMPARE(unsigned short);
-					case (size_t)type_id::int32_t: return COMPARE(signed int);
-					case (size_t)type_id::uint32_t: return COMPARE(uint32_t);
-					case (size_t)type_id::float_t: return COMPARE(float);
-					case (size_t)type_id::double_t: return COMPARE(double);
+					case (int)type_id::bool_t: return COMPARE(bool);
+					case (int)type_id::int8_t: return COMPARE(signed char);
+					case (int)type_id::uint8_t: return COMPARE(unsigned char);
+					case (int)type_id::int16_t: return COMPARE(signed short);
+					case (int)type_id::uint16_t: return COMPARE(unsigned short);
+					case (int)type_id::int32_t: return COMPARE(signed int);
+					case (int)type_id::uint32_t: return COMPARE(uint32_t);
+					case (int)type_id::float_t: return COMPARE(float);
+					case (int)type_id::double_t: return COMPARE(double);
 					default: return COMPARE(signed int);
 #undef COMPARE
 				}
@@ -1809,9 +1808,9 @@ namespace vitex
 			}
 			bool array::equals(const void* a, const void* b, immediate_context* context, scache* cache) const
 			{
-				if (sub_type_id & ~(size_t)type_id::mask_seqnbr_t)
+				if (sub_type_id & ~(int)type_id::mask_seqnbr_t)
 				{
-					if (sub_type_id & (size_t)type_id::handle_t)
+					if (sub_type_id & (int)type_id::handle_t)
 					{
 						if (*(void**)a == *(void**)b)
 							return true;
@@ -1845,15 +1844,15 @@ namespace vitex
 				switch (sub_type_id)
 				{
 #define COMPARE(t) *((t*)a) == *((t*)b)
-					case (size_t)type_id::bool_t: return COMPARE(bool);
-					case (size_t)type_id::int8_t: return COMPARE(signed char);
-					case (size_t)type_id::uint8_t: return COMPARE(unsigned char);
-					case (size_t)type_id::int16_t: return COMPARE(signed short);
-					case (size_t)type_id::uint16_t: return COMPARE(unsigned short);
-					case (size_t)type_id::int32_t: return COMPARE(signed int);
-					case (size_t)type_id::uint32_t: return COMPARE(uint32_t);
-					case (size_t)type_id::float_t: return COMPARE(float);
-					case (size_t)type_id::double_t: return COMPARE(double);
+					case (int)type_id::bool_t: return COMPARE(bool);
+					case (int)type_id::int8_t: return COMPARE(signed char);
+					case (int)type_id::uint8_t: return COMPARE(unsigned char);
+					case (int)type_id::int16_t: return COMPARE(signed short);
+					case (int)type_id::uint16_t: return COMPARE(unsigned short);
+					case (int)type_id::int32_t: return COMPARE(signed int);
+					case (int)type_id::uint32_t: return COMPARE(uint32_t);
+					case (int)type_id::float_t: return COMPARE(float);
+					case (int)type_id::double_t: return COMPARE(double);
 					default: return COMPARE(signed int);
 #undef COMPARE
 				}
@@ -1861,7 +1860,7 @@ namespace vitex
 			size_t array::find_by_ref(void* value, size_t start_at) const
 			{
 				size_t length = size();
-				if (sub_type_id & (size_t)type_id::handle_t)
+				if (sub_type_id & (int)type_id::handle_t)
 				{
 					value = *(void**)value;
 					for (size_t i = start_at; i < length; i++)
@@ -1906,7 +1905,7 @@ namespace vitex
 			}
 			void* array::get_data_pointer(void* buffer_ptr)
 			{
-				if ((sub_type_id & (size_t)type_id::mask_object_t) && !(sub_type_id & (size_t)type_id::handle_t))
+				if ((sub_type_id & (int)type_id::mask_object_t) && !(sub_type_id & (int)type_id::handle_t))
 					return reinterpret_cast<void*>(*(size_t*)buffer_ptr);
 				else
 					return buffer_ptr;
@@ -1971,7 +1970,7 @@ namespace vitex
 			void array::copy_buffer(sbuffer* dest, sbuffer* src)
 			{
 				virtual_machine* engine = obj_type.get_vm();
-				if (sub_type_id & (size_t)type_id::handle_t)
+				if (sub_type_id & (int)type_id::handle_t)
 				{
 					if (dest->num_elements > 0 && src->num_elements > 0)
 					{
@@ -1998,7 +1997,7 @@ namespace vitex
 					if (dest->num_elements > 0 && src->num_elements > 0)
 					{
 						int count = (int)(dest->num_elements > src->num_elements ? src->num_elements : dest->num_elements);
-						if (sub_type_id & (size_t)type_id::mask_object_t)
+						if (sub_type_id & (int)type_id::mask_object_t)
 						{
 							void** max = (void**)(dest->data + count * sizeof(void*));
 							void** d = (void**)dest->data;
@@ -2017,7 +2016,7 @@ namespace vitex
 			{
 #ifdef VI_ANGELSCRIPT
 				sub_type_id = obj_type.get_sub_type_id();
-				if (!(sub_type_id & ~(size_t)type_id::mask_seqnbr_t))
+				if (!(sub_type_id & ~(int)type_id::mask_seqnbr_t))
 					return;
 
 				scache* cache = reinterpret_cast<scache*>(obj_type.get_user_data(array_id));
@@ -2037,7 +2036,7 @@ namespace vitex
 				}
 
 				memset(cache, 0, sizeof(scache));
-				bool must_be_const = (sub_type_id & (size_t)type_id::const_handle_t) ? true : false;
+				bool must_be_const = (sub_type_id & (int)type_id::const_handle_t) ? true : false;
 
 				auto sub_type = obj_type.get_vm()->get_type_info_by_id(sub_type_id);
 				if (sub_type.is_valid())
@@ -2053,9 +2052,9 @@ namespace vitex
 								continue;
 
 							bool is_cmp = false, is_equals = false;
-							if (return_type_id == (size_t)type_id::int32_t && function.get_name() == "opCmp")
+							if (return_type_id == (int)type_id::int32_t && function.get_name() == "opCmp")
 								is_cmp = true;
-							if (return_type_id == (size_t)type_id::bool_t && function.get_name() == "opEquals")
+							if (return_type_id == (int)type_id::bool_t && function.get_name() == "opEquals")
 								is_equals = true;
 
 							if (!is_cmp && !is_equals)
@@ -2064,17 +2063,17 @@ namespace vitex
 							int param_type_id;
 							function.get_arg(0, &param_type_id, &flags);
 
-							if ((param_type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)) != (sub_type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)))
+							if ((param_type_id & ~((int)type_id::handle_t | (int)type_id::const_handle_t)) != (sub_type_id & ~((int)type_id::handle_t | (int)type_id::const_handle_t)))
 								continue;
 
 							if ((flags & (size_t)modifiers::in_ref))
 							{
-								if ((param_type_id & (size_t)type_id::handle_t) || (must_be_const && !(flags & (size_t)modifiers::constant)))
+								if ((param_type_id & (int)type_id::handle_t) || (must_be_const && !(flags & (size_t)modifiers::constant)))
 									continue;
 							}
-							else if (param_type_id & (size_t)type_id::handle_t)
+							else if (param_type_id & (int)type_id::handle_t)
 							{
-								if (must_be_const && !(param_type_id & (size_t)type_id::const_handle_t))
+								if (must_be_const && !(param_type_id & (int)type_id::const_handle_t))
 									continue;
 							}
 							else
@@ -2115,7 +2114,7 @@ namespace vitex
 			}
 			void array::enum_references(asIScriptEngine* engine)
 			{
-				if (sub_type_id & (size_t)type_id::mask_object_t)
+				if (sub_type_id & (int)type_id::mask_object_t)
 				{
 					void** data = (void**)buffer->data;
 					virtual_machine* vm = virtual_machine::get(engine);
@@ -2181,10 +2180,10 @@ namespace vitex
 			{
 				type_info info(info_context);
 				int type_id = info.get_sub_type_id();
-				if (type_id == (size_t)type_id::void_t)
+				if (type_id == (int)type_id::void_t)
 					return false;
 
-				if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t))
+				if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t))
 				{
 					virtual_machine* engine = info.get_vm();
 					auto sub_type = engine->get_type_info_by_id(type_id);
@@ -2239,7 +2238,7 @@ namespace vitex
 					if (!(flags & (size_t)object_behaviours::gc))
 						dont_garbage_collect = true;
 				}
-				else if (!(type_id & (size_t)type_id::handle_t))
+				else if (!(type_id & (int)type_id::handle_t))
 				{
 					dont_garbage_collect = true;
 				}
@@ -2327,9 +2326,9 @@ namespace vitex
 			storable::storable() noexcept
 			{
 			}
-			storable::storable(virtual_machine* engine, void* value, int _TypeId) noexcept
+			storable::storable(virtual_machine* engine, void* value, int _type_id) noexcept
 			{
-				set(engine, value, _TypeId);
+				set(engine, value, _type_id);
 			}
 			storable::~storable() noexcept
 			{
@@ -2342,7 +2341,7 @@ namespace vitex
 			}
 			void storable::release_references(asIScriptEngine* engine)
 			{
-				if (value.type_id & (size_t)type_id::mask_object_t)
+				if (value.type_id & (int)type_id::mask_object_t)
 				{
 					virtual_machine* vm = virtual_machine::get(engine);
 					vm->release_object(value.object, vm->get_type_info_by_id(value.type_id));
@@ -2355,17 +2354,17 @@ namespace vitex
 				if (value.type_id)
 					function_factory::gc_enum_callback(_Engine, virtual_machine::get(_Engine)->get_type_info_by_id(value.type_id).get_type_info());
 			}
-			void storable::set(virtual_machine* engine, void* pointer, int _TypeId)
+			void storable::set(virtual_machine* engine, void* pointer, int _type_id)
 			{
 				release_references(engine->get_engine());
-				value.type_id = _TypeId;
+				value.type_id = _type_id;
 
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 				{
 					value.object = *(void**)pointer;
 					engine->add_ref_object(value.object, engine->get_type_info_by_id(value.type_id));
 				}
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(pointer, engine->get_type_info_by_id(value.type_id));
 					if (value.object == 0)
@@ -2380,30 +2379,30 @@ namespace vitex
 			}
 			void storable::set(virtual_machine* engine, storable& other)
 			{
-				if (other.value.type_id & (size_t)type_id::handle_t)
+				if (other.value.type_id & (int)type_id::handle_t)
 					set(engine, (void*)&other.value.object, other.value.type_id);
-				else if (other.value.type_id & (size_t)type_id::mask_object_t)
+				else if (other.value.type_id & (int)type_id::mask_object_t)
 					set(engine, (void*)other.value.object, other.value.type_id);
 				else
 					set(engine, (void*)&other.value.integer, other.value.type_id);
 			}
-			bool storable::get(virtual_machine* engine, void* pointer, int _TypeId) const
+			bool storable::get(virtual_machine* engine, void* pointer, int _type_id) const
 			{
-				if (_TypeId & (size_t)type_id::handle_t)
+				if (_type_id & (int)type_id::handle_t)
 				{
-					if ((_TypeId & (size_t)type_id::mask_object_t))
+					if ((_type_id & (int)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::const_handle_t) && !(_TypeId & (size_t)type_id::const_handle_t))
+						if ((value.type_id & (int)type_id::const_handle_t) && !(_type_id & (int)type_id::const_handle_t))
 							return false;
 
-						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(_TypeId), reinterpret_cast<void**>(pointer));
+						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(_type_id), reinterpret_cast<void**>(pointer));
 						return true;
 					}
 				}
-				else if (_TypeId & (size_t)type_id::mask_object_t)
+				else if (_type_id & (int)type_id::mask_object_t)
 				{
 					bool isCompatible = false;
-					if ((value.type_id & ~((size_t)type_id::handle_t | (size_t)type_id::const_handle_t)) == _TypeId && value.object != 0)
+					if ((value.type_id & ~((int)type_id::handle_t | (int)type_id::const_handle_t)) == _type_id && value.object != 0)
 						isCompatible = true;
 
 					if (isCompatible)
@@ -2414,27 +2413,27 @@ namespace vitex
 				}
 				else
 				{
-					if (value.type_id == _TypeId)
+					if (value.type_id == _type_id)
 					{
-						auto size = engine->get_size_of_primitive_type(_TypeId);
+						auto size = engine->get_size_of_primitive_type(_type_id);
 						if (size)
 							memcpy(pointer, &value.integer, *size);
 						return true;
 					}
 
-					if (_TypeId == (size_t)type_id::double_t)
+					if (_type_id == (int)type_id::double_t)
 					{
-						if (value.type_id == (size_t)type_id::int64_t)
+						if (value.type_id == (int)type_id::int64_t)
 						{
 							*(double*)pointer = double(value.integer);
 						}
-						else if (value.type_id == (size_t)type_id::bool_t)
+						else if (value.type_id == (int)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(double*)pointer = local ? 1.0 : 0.0;
 						}
-						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
+						else if (value.type_id > (int)type_id::double_t && (value.type_id & (int)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2448,19 +2447,19 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId == (size_t)type_id::int64_t)
+					else if (_type_id == (int)type_id::int64_t)
 					{
-						if (value.type_id == (size_t)type_id::double_t)
+						if (value.type_id == (int)type_id::double_t)
 						{
 							*(as_int64_t*)pointer = as_int64_t(value.number);
 						}
-						else if (value.type_id == (size_t)type_id::bool_t)
+						else if (value.type_id == (int)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(as_int64_t*)pointer = local ? 1 : 0;
 						}
-						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
+						else if (value.type_id > (int)type_id::double_t && (value.type_id & (int)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2474,23 +2473,23 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
+					else if (_type_id > (int)type_id::double_t && (value.type_id & (int)type_id::mask_object_t) == 0)
 					{
-						if (value.type_id == (size_t)type_id::double_t)
+						if (value.type_id == (int)type_id::double_t)
 						{
 							*(int*)pointer = int(value.number);
 						}
-						else if (value.type_id == (size_t)type_id::int64_t)
+						else if (value.type_id == (int)type_id::int64_t)
 						{
 							*(int*)pointer = int(value.integer);
 						}
-						else if (value.type_id == (size_t)type_id::bool_t)
+						else if (value.type_id == (int)type_id::bool_t)
 						{
 							char local;
 							memcpy(&local, &value.integer, sizeof(char));
 							*(int*)pointer = local ? 1 : 0;
 						}
-						else if (value.type_id > (size_t)type_id::double_t && (value.type_id & (size_t)type_id::mask_object_t) == 0)
+						else if (value.type_id > (int)type_id::double_t && (value.type_id & (int)type_id::mask_object_t) == 0)
 						{
 							int local;
 							memcpy(&local, &value.integer, sizeof(int));
@@ -2504,13 +2503,13 @@ namespace vitex
 
 						return true;
 					}
-					else if (_TypeId == (size_t)type_id::bool_t)
+					else if (_type_id == (int)type_id::bool_t)
 					{
-						if (value.type_id & (size_t)type_id::handle_t)
+						if (value.type_id & (int)type_id::handle_t)
 						{
 							*(bool*)pointer = value.object ? true : false;
 						}
-						else if (value.type_id & (size_t)type_id::mask_object_t)
+						else if (value.type_id & (int)type_id::mask_object_t)
 						{
 							*(bool*)pointer = true;
 						}
@@ -2530,7 +2529,7 @@ namespace vitex
 			}
 			const void* storable::get_address_of_value() const
 			{
-				if ((value.type_id & (size_t)type_id::mask_object_t) && !(value.type_id & (size_t)type_id::handle_t))
+				if ((value.type_id & (int)type_id::mask_object_t) && !(value.type_id & (int)type_id::handle_t))
 					return value.object;
 
 				return reinterpret_cast<const void*>(&value.object);
@@ -2614,57 +2613,57 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref_ptr = (void*)buffer;
-					if (type_id >= (size_t)type_id::int8_t && type_id <= (size_t)type_id::double_t)
+					if (type_id >= (int)type_id::int8_t && type_id <= (int)type_id::double_t)
 					{
 						as_int64_t integer64;
 						double double64;
 
 						switch (type_id)
 						{
-							case (size_t)type_id::int8_t:
+							case (int)type_id::int8_t:
 								integer64 = *(char*)ref_ptr;
 								break;
-							case (size_t)type_id::int16_t:
+							case (int)type_id::int16_t:
 								integer64 = *(short*)ref_ptr;
 								break;
-							case (size_t)type_id::int32_t:
+							case (int)type_id::int32_t:
 								integer64 = *(int*)ref_ptr;
 								break;
-							case (size_t)type_id::uint8_t:
+							case (int)type_id::uint8_t:
 								integer64 = *(unsigned char*)ref_ptr;
 								break;
-							case (size_t)type_id::uint16_t:
+							case (int)type_id::uint16_t:
 								integer64 = *(unsigned short*)ref_ptr;
 								break;
-							case (size_t)type_id::uint32_t:
+							case (int)type_id::uint32_t:
 								integer64 = *(uint32_t*)ref_ptr;
 								break;
-							case (size_t)type_id::int64_t:
-							case (size_t)type_id::uint64_t:
+							case (int)type_id::int64_t:
+							case (int)type_id::uint64_t:
 								integer64 = *(as_int64_t*)ref_ptr;
 								break;
-							case (size_t)type_id::float_t:
+							case (int)type_id::float_t:
 								double64 = *(float*)ref_ptr;
 								break;
-							case (size_t)type_id::double_t:
+							case (int)type_id::double_t:
 								double64 = *(double*)ref_ptr;
 								break;
 						}
 
-						if (type_id >= (size_t)type_id::float_t)
-							set(name, &double64, (size_t)type_id::double_t);
+						if (type_id >= (int)type_id::float_t)
+							set(name, &double64, (int)type_id::double_t);
 						else
-							set(name, &integer64, (size_t)type_id::int64_t);
+							set(name, &integer64, (int)type_id::int64_t);
 					}
 					else
 					{
-						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (engine->get_type_info_by_id(type_id).flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t) && (engine->get_type_info_by_id(type_id).flags() & (size_t)object_behaviours::ref))
 							ref_ptr = *(void**)ref_ptr;
 
 						set(name, ref_ptr, engine->is_nullable(type_id) ? 0 : type_id);
 					}
 
-					if (type_id & (size_t)type_id::mask_object_t)
+					if (type_id & (int)type_id::mask_object_t)
 					{
 						auto info = engine->get_type_info_by_id(type_id);
 						if (info.flags() & (size_t)object_behaviours::value)
@@ -2684,9 +2683,9 @@ namespace vitex
 				for (auto it = other.data.begin(); it != other.data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::handle_t)
+					if (key.value.type_id & (int)type_id::handle_t)
 						set(it->first, (void*)&key.value.object, key.value.type_id);
-					else if (key.value.type_id & (size_t)type_id::mask_object_t)
+					else if (key.value.type_id & (int)type_id::mask_object_t)
 						set(it->first, (void*)key.value.object, key.value.type_id);
 					else
 						set(it->first, (void*)&key.value.integer, key.value.type_id);
@@ -2701,7 +2700,7 @@ namespace vitex
 				for (auto it = data.begin(); it != data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::mask_object_t)
+					if (key.value.type_id & (int)type_id::mask_object_t)
 					{
 						auto sub_type = engine->get_type_info_by_id(key.value.type_id);
 						if ((sub_type.flags() & (size_t)object_behaviours::value) && (sub_type.flags() & (size_t)object_behaviours::gc))
@@ -2721,9 +2720,9 @@ namespace vitex
 				for (auto it = other.data.begin(); it != other.data.end(); ++it)
 				{
 					auto& key = it->second;
-					if (key.value.type_id & (size_t)type_id::handle_t)
+					if (key.value.type_id & (int)type_id::handle_t)
 						set(it->first, (void*)&key.value.object, key.value.type_id);
-					else if (key.value.type_id & (size_t)type_id::mask_object_t)
+					else if (key.value.type_id & (int)type_id::mask_object_t)
 						set(it->first, (void*)key.value.object, key.value.type_id);
 					else
 						set(it->first, (void*)&key.value.integer, key.value.type_id);
@@ -2976,11 +2975,11 @@ namespace vitex
 			}
 			storable& dictionary::keyop_assign(storable* base, double value)
 			{
-				return keyop_assign(base, &value, (size_t)type_id::double_t);
+				return keyop_assign(base, &value, (int)type_id::double_t);
 			}
 			storable& dictionary::keyop_assign(storable* base, as_int64_t value)
 			{
-				return dictionary::keyop_assign(base, &value, (size_t)type_id::int64_t);
+				return dictionary::keyop_assign(base, &value, (int)type_id::int64_t);
 			}
 			void dictionary::keyop_cast(storable* base, void* ref_ptr, int type_id)
 			{
@@ -2991,13 +2990,13 @@ namespace vitex
 			as_int64_t dictionary::keyop_conv_int(storable* base)
 			{
 				as_int64_t value;
-				keyop_cast(base, &value, (size_t)type_id::int64_t);
+				keyop_cast(base, &value, (int)type_id::int64_t);
 				return value;
 			}
 			double dictionary::keyop_conv_double(storable* base)
 			{
 				double value;
-				keyop_cast(base, &value, (size_t)type_id::double_t);
+				keyop_cast(base, &value, (int)type_id::double_t);
 				return value;
 			}
 			int dictionary::dictionary_id = 2348;
@@ -3048,7 +3047,7 @@ namespace vitex
 			}
 			void promise::enum_references(asIScriptEngine* other_engine)
 			{
-				if (value.object != nullptr && (value.type_id & (size_t)type_id::mask_object_t))
+				if (value.object != nullptr && (value.type_id & (int)type_id::mask_object_t))
 				{
 					auto sub_type = engine->get_type_info_by_id(value.type_id);
 					if ((sub_type.flags() & (size_t)object_behaviours::ref))
@@ -3064,7 +3063,7 @@ namespace vitex
 			}
 			void promise::release_references(asIScriptEngine*)
 			{
-				if (value.type_id & (size_t)type_id::mask_object_t)
+				if (value.type_id & (int)type_id::mask_object_t)
 				{
 					auto type = engine->get_type_info_by_id(value.type_id);
 					engine->release_object(value.object, type);
@@ -3108,7 +3107,7 @@ namespace vitex
 			void promise::store(void* ref_pointer, int ref_type_id)
 			{
 				VI_ASSERT(value.type_id == promise_null, "promise should be settled only once");
-				VI_ASSERT(ref_pointer != nullptr || ref_type_id == (size_t)type_id::void_t, "input pointer should not be null");
+				VI_ASSERT(ref_pointer != nullptr || ref_type_id == (int)type_id::void_t, "input pointer should not be null");
 				VI_ASSERT(engine != nullptr, "promise is malformed (engine is null)");
 				VI_ASSERT(context != nullptr, "promise is malformed (context is null)");
 
@@ -3116,7 +3115,7 @@ namespace vitex
 				if (value.type_id != promise_null)
 					return bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_PROMISEREADY));
 
-				if ((ref_type_id & (size_t)type_id::mask_object_t))
+				if ((ref_type_id & (int)type_id::mask_object_t))
 				{
 					auto type = engine->get_type_info_by_id(ref_type_id);
 					if (type.is_valid())
@@ -3124,11 +3123,11 @@ namespace vitex
 				}
 
 				value.type_id = ref_type_id;
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 				{
 					value.object = *(void**)ref_pointer;
 				}
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 				{
 					value.object = engine->create_object_copy(ref_pointer, engine->get_type_info_by_id(value.type_id));
 				}
@@ -3183,11 +3182,11 @@ namespace vitex
 				if (value.type_id == promise_null)
 					return false;
 
-				if (ref_type_id & (size_t)type_id::handle_t)
+				if (ref_type_id & (int)type_id::handle_t)
 				{
-					if ((value.type_id & (size_t)type_id::mask_object_t))
+					if ((value.type_id & (int)type_id::mask_object_t))
 					{
-						if ((value.type_id & (size_t)type_id::const_handle_t) && !(ref_type_id & (size_t)type_id::const_handle_t))
+						if ((value.type_id & (int)type_id::const_handle_t) && !(ref_type_id & (int)type_id::const_handle_t))
 							return false;
 
 						engine->ref_cast_object(value.object, engine->get_type_info_by_id(value.type_id), engine->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref_pointer));
@@ -3198,7 +3197,7 @@ namespace vitex
 						return true;
 					}
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object_t)
+				else if (ref_type_id & (int)type_id::mask_object_t)
 				{
 					if (value.type_id == ref_type_id)
 					{
@@ -3235,11 +3234,11 @@ namespace vitex
 				if (value.type_id == promise_null)
 					return nullptr;
 
-				if (value.type_id & (size_t)type_id::handle_t)
+				if (value.type_id & (int)type_id::handle_t)
 					return &value.object;
-				else if (value.type_id & (size_t)type_id::mask_object_t)
+				else if (value.type_id & (int)type_id::mask_object_t)
 					return value.object;
-				else if (value.type_id <= (size_t)type_id::double_t || value.type_id & (size_t)type_id::mask_seqnbr_t)
+				else if (value.type_id <= (int)type_id::double_t || value.type_id & (int)type_id::mask_seqnbr_t)
 					return &value.integer;
 
 				return nullptr;
@@ -3262,7 +3261,7 @@ namespace vitex
 				if (!future)
 					bindings::exception::throw_ptr(bindings::exception::pointer(EXCEPTION_OUTOFMEMORY));
 
-				if (type_id != (size_t)type_id::void_t)
+				if (type_id != (int)type_id::void_t)
 					future->store(_Ref, type_id);
 				return future;
 			}
@@ -3284,10 +3283,10 @@ namespace vitex
 			{
 				type_info info(info_context);
 				int type_id = info.get_sub_type_id();
-				if (type_id == (size_t)type_id::void_t)
+				if (type_id == (int)type_id::void_t)
 					return false;
 
-				if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t))
+				if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t))
 				{
 					virtual_machine* engine = info.get_vm();
 					auto sub_type = engine->get_type_info_by_id(type_id);
@@ -3296,7 +3295,7 @@ namespace vitex
 					if (!(flags & (size_t)object_behaviours::gc))
 						dont_garbage_collect = true;
 				}
-				else if (!(type_id & (size_t)type_id::handle_t))
+				else if (!(type_id & (int)type_id::handle_t))
 				{
 					dont_garbage_collect = true;
 				}
@@ -3817,39 +3816,39 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref = (void*)buffer;
-					if (type_id >= (size_t)type_id::bool_t && type_id <= (size_t)type_id::double_t)
+					if (type_id >= (int)type_id::bool_t && type_id <= (int)type_id::double_t)
 					{
 						switch (type_id)
 						{
-							case (size_t)type_id::bool_t:
+							case (int)type_id::bool_t:
 								result->set(name, core::var::boolean(*(bool*)ref));
 								break;
-							case (size_t)type_id::int8_t:
+							case (int)type_id::int8_t:
 								result->set(name, core::var::integer(*(char*)ref));
 								break;
-							case (size_t)type_id::int16_t:
+							case (int)type_id::int16_t:
 								result->set(name, core::var::integer(*(short*)ref));
 								break;
-							case (size_t)type_id::int32_t:
+							case (int)type_id::int32_t:
 								result->set(name, core::var::integer(*(int*)ref));
 								break;
-							case (size_t)type_id::uint8_t:
+							case (int)type_id::uint8_t:
 								result->set(name, core::var::integer(*(unsigned char*)ref));
 								break;
-							case (size_t)type_id::uint16_t:
+							case (int)type_id::uint16_t:
 								result->set(name, core::var::integer(*(unsigned short*)ref));
 								break;
-							case (size_t)type_id::uint32_t:
+							case (int)type_id::uint32_t:
 								result->set(name, core::var::integer(*(uint32_t*)ref));
 								break;
-							case (size_t)type_id::int64_t:
-							case (size_t)type_id::uint64_t:
+							case (int)type_id::int64_t:
+							case (int)type_id::uint64_t:
 								result->set(name, core::var::integer(*(int64_t*)ref));
 								break;
-							case (size_t)type_id::float_t:
+							case (int)type_id::float_t:
 								result->set(name, core::var::number(*(float*)ref));
 								break;
-							case (size_t)type_id::double_t:
+							case (int)type_id::double_t:
 								result->set(name, core::var::number(*(double*)ref));
 								break;
 						}
@@ -3857,10 +3856,10 @@ namespace vitex
 					else
 					{
 						auto type = vm->get_type_info_by_id(type_id);
-						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t) && (type.is_valid() && type.flags() & (int)object_behaviours::ref))
 							ref = *(void**)ref;
 
-						if (type_id & (size_t)type_id::handle_t)
+						if (type_id & (int)type_id::handle_t)
 							ref = *(void**)ref;
 
 						if (vm->is_nullable(type_id) || !ref)
@@ -3881,7 +3880,7 @@ namespace vitex
 							result->set(name, core::var::decimal(*(core::decimal*)ref));
 					}
 
-					if (type_id & (size_t)type_id::mask_object_t)
+					if (type_id & (int)type_id::mask_object_t)
 					{
 						auto type = vm->get_type_info_by_id(type_id);
 						if (type.flags() & (size_t)object_behaviours::value)
@@ -4973,7 +4972,7 @@ namespace vitex
 				if (!initiator_object || !initiator_type || !ref_pointer || !current_vm)
 					return false;
 
-				if (ref_type_id & (size_t)type_id::handle_t)
+				if (ref_type_id & (int)type_id::handle_t)
 				{
 					current_vm->ref_cast_object(initiator_object, initiator_type, current_vm->get_type_info_by_id(ref_type_id), reinterpret_cast<void**>(ref_pointer));
 #ifdef VI_ANGELSCRIPT
@@ -4982,7 +4981,7 @@ namespace vitex
 #endif
 					return true;
 				}
-				else if (ref_type_id & (size_t)type_id::mask_object_t)
+				else if (ref_type_id & (int)type_id::mask_object_t)
 				{
 					auto ref_type_info = current_vm->get_type_info_by_id(ref_type_id);
 					if (initiator_type == ref_type_info.get_type_info())
@@ -7734,39 +7733,39 @@ namespace vitex
 					buffer += sizeof(int);
 
 					void* ref = (void*)buffer;
-					if (type_id >= (size_t)type_id::bool_t && type_id <= (size_t)type_id::double_t)
+					if (type_id >= (int)type_id::bool_t && type_id <= (int)type_id::double_t)
 					{
 						switch (type_id)
 						{
-							case (size_t)type_id::bool_t:
+							case (int)type_id::bool_t:
 								result.set_boolean(name, *(bool*)ref);
 								break;
-							case (size_t)type_id::int8_t:
+							case (int)type_id::int8_t:
 								result.set_integer(name, *(char*)ref);
 								break;
-							case (size_t)type_id::int16_t:
+							case (int)type_id::int16_t:
 								result.set_integer(name, *(short*)ref);
 								break;
-							case (size_t)type_id::int32_t:
+							case (int)type_id::int32_t:
 								result.set_integer(name, *(int*)ref);
 								break;
-							case (size_t)type_id::uint8_t:
+							case (int)type_id::uint8_t:
 								result.set_integer(name, *(unsigned char*)ref);
 								break;
-							case (size_t)type_id::uint16_t:
+							case (int)type_id::uint16_t:
 								result.set_integer(name, *(unsigned short*)ref);
 								break;
-							case (size_t)type_id::uint32_t:
+							case (int)type_id::uint32_t:
 								result.set_integer(name, *(uint32_t*)ref);
 								break;
-							case (size_t)type_id::int64_t:
-							case (size_t)type_id::uint64_t:
+							case (int)type_id::int64_t:
+							case (int)type_id::uint64_t:
 								result.set_integer(name, *(int64_t*)ref);
 								break;
-							case (size_t)type_id::float_t:
+							case (int)type_id::float_t:
 								result.set_number(name, *(float*)ref);
 								break;
-							case (size_t)type_id::double_t:
+							case (int)type_id::double_t:
 								result.set_number(name, *(double*)ref);
 								break;
 						}
@@ -7774,10 +7773,10 @@ namespace vitex
 					else
 					{
 						auto type = vm->get_type_info_by_id(type_id);
-						if ((type_id & (size_t)type_id::mask_object_t) && !(type_id & (size_t)type_id::handle_t) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
+						if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t) && (type.is_valid() && type.flags() & (size_t)object_behaviours::ref))
 							ref = *(void**)ref;
 
-						if (type_id & (size_t)type_id::handle_t)
+						if (type_id & (int)type_id::handle_t)
 							ref = *(void**)ref;
 
 						if (vm->is_nullable(type_id) || !ref)
@@ -7795,7 +7794,7 @@ namespace vitex
 							result.set_decimal_string(name, ((core::decimal*)ref)->to_string());
 					}
 
-					if (type_id & (size_t)type_id::mask_object_t)
+					if (type_id & (int)type_id::mask_object_t)
 					{
 						auto type = vm->get_type_info_by_id(type_id);
 						if (type.flags() & (size_t)object_behaviours::value)

@@ -550,7 +550,7 @@ namespace vitex
 			{
 				return memory::allocate<t>(count * sizeof(t));
 			}
-			void deallocate(value_type* address, size_t count)
+			void deallocate(value_type* address, size_t)
 			{
 				memory::deallocate<value_type>(address);
 			}
@@ -2823,7 +2823,7 @@ namespace vitex
 			{
 				return static_cast<void*>(memory::allocate<t>(size, location));
 			}
-			void operator delete(void* address, const std::source_location& location) noexcept
+			void operator delete(void*, const std::source_location&) noexcept
 			{
 				VI_ASSERT(false, "illegal usage of no-op delete operator usable only by compiler");
 			}
@@ -3617,7 +3617,7 @@ namespace vitex
 		class process_stream final : public stream
 		{
 		private:
-			struct
+			struct internal_state
 			{
 				void* output_pipe = nullptr;
 				void* input_pipe = nullptr;

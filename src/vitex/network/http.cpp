@@ -1076,7 +1076,7 @@ namespace vitex
 					if (!result.found)
 						continue;
 
-					size_t content_start = -1, content_end = -1;
+					size_t content_start = (size_t)(-1), content_end = (size_t)(-1);
 					if (result.start > 0)
 					{
 						const char* left = item.c_str() + result.start - 1;
@@ -1113,7 +1113,7 @@ namespace vitex
 						}
 					}
 
-					if (content_start != -1 || content_end != -1)
+					if (content_start != (size_t)(-1) || content_end != (size_t)(-1))
 						ranges.emplace_back(std::make_pair(content_start, content_end));
 				}
 
@@ -1121,10 +1121,10 @@ namespace vitex
 			}
 			std::pair<size_t, size_t> request_frame::get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const
 			{
-				if (range->first == -1 && range->second == -1)
+				if (range->first == (size_t)(-1) && range->second == (size_t)(-1))
 					return std::make_pair(0, content_length);
 
-				if (range->first == -1)
+				if (range->first == (size_t)(-1))
 				{
 					if (range->second > content_length)
 						range->second = 0;
@@ -1135,7 +1135,7 @@ namespace vitex
 				else if (range->first > content_length)
 					range->first = content_length;
 
-				if (range->second == -1)
+				if (range->second == (size_t)(-1))
 					range->second = content_length;
 				else if (range->second > content_length)
 					range->second = content_length;
@@ -1528,7 +1528,7 @@ namespace vitex
 					if (!result.found)
 						continue;
 
-					size_t content_start = -1, content_end = -1;
+					size_t content_start = (size_t)(-1), content_end = (size_t)(-1);
 					if (result.start > 0)
 					{
 						const char* left = item.c_str() + result.start - 1;
@@ -1565,7 +1565,7 @@ namespace vitex
 						}
 					}
 
-					if (content_start != -1 || content_end != -1)
+					if (content_start != (size_t)(-1) || content_end != (size_t)(-1))
 						ranges.emplace_back(std::make_pair(content_start, content_end));
 				}
 
@@ -1573,10 +1573,10 @@ namespace vitex
 			}
 			std::pair<size_t, size_t> fetch_frame::get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const
 			{
-				if (range->first == -1 && range->second == -1)
+				if (range->first == (size_t)(-1) && range->second == (size_t)(-1))
 					return std::make_pair(0, content_length);
 
-				if (range->first == -1)
+				if (range->first == (size_t)(-1))
 				{
 					if (range->second > content_length)
 						range->second = 0;
@@ -1587,7 +1587,7 @@ namespace vitex
 				else if (range->first > content_length)
 					range->first = content_length;
 
-				if (range->second == -1)
+				if (range->second == (size_t)(-1))
 					range->second = content_length;
 				else if (range->second > content_length)
 					range->second = content_length;
@@ -1768,7 +1768,7 @@ namespace vitex
 						else if (!ranges.empty())
 						{
 							auto range = ranges.begin();
-							bool is_full_length = (range->first == -1 && range->second == -1);
+							bool is_full_length = (range->first == (size_t)(-1) && range->second == (size_t)(-1));
 							std::pair<size_t, size_t> offset = request.get_range(range, response.content.data.size());
 							if (response.get_header("Content-Range").empty())
 								content->append("Content-Range: ").append(paths::construct_content_range(offset.first, offset.second, response.content.data.size())).append("\r\n");
@@ -6918,7 +6918,7 @@ namespace vitex
 				bool secure = origin.protocol == "https";
 				core::string hostname = origin.hostname;
 				core::string port = origin.port > 0 ? core::to_string(origin.port) : core::string(secure ? "443" : "80");
-				int32_t verify_peers = (secure ? (options.verify_peers >= 0 ? options.verify_peers : PEER_NOT_VERIFIED) : PEER_NOT_SECURE);
+				int32_t verify_peers = (secure ? (int32_t)options.verify_peers : (int32_t)PEER_NOT_SECURE);
 				return dns::get()->lookup_deferred(hostname, port, secure ? dns_check::secure_connect : dns_check::connect, socket_protocol::tcp, socket_type::stream).then<core::expects_promise_system<response_frame>>([max_size, timeout, verify_peers, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<response_frame>
 				{
 					if (!address)

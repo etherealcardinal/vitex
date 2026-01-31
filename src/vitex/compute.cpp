@@ -250,7 +250,7 @@ namespace vitex
 				bracket.branches_count = 0;
 				bracket.branches = j;
 
-				while (j < branches.size() && branches[j].bracket_index == i)
+				while (j < branches.size() && branches[j].bracket_index == (int64_t)i)
 				{
 					bracket.branches_count++;
 					j++;

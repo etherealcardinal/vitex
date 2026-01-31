@@ -706,7 +706,7 @@ namespace vitex
 			{
 				char data[core::BLOB_SIZE];
 				attachment& it = request.attachments.at(request.attachments.size() - pending);
-				size_t count = it.length > core::BLOB_SIZE ? core::BLOB_SIZE : it.length;
+				size_t count = it.length > (size_t)core::BLOB_SIZE ? (size_t)core::BLOB_SIZE : it.length;
 				size_t size = (size_t)fread(data, sizeof(char), count, attachment_file);
 				if (size != count)
 				{

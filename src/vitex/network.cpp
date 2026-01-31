@@ -598,7 +598,7 @@ namespace vitex
 				const char* port_begin = strchr(ip_v6_end ? ip_v6_end : host_begin, ':');
 				if (port_begin != nullptr && (path_begin == nullptr || port_begin < path_begin))
 				{
-					if (1 != sscanf(port_begin, ":%" SCNd16, &port))
+					if (1 != sscanf(port_begin, ":%" SCNu16, &port))
 						goto finalize_url;
 
 					hostname = core::string(host_begin + (ip_v6_end ? 1 : 0), ip_v6_end ? ip_v6_end : port_begin);
@@ -2960,7 +2960,6 @@ namespace vitex
 		core::expects_io<size_t> socket::write_file(FILE* stream, size_t offset, size_t size)
 		{
 			VI_ASSERT(stream != nullptr, "stream should be set");
-			VI_ASSERT(offset >= 0, "offset should be set and positive");
 			VI_ASSERT(size > 0, "size should be set and greater than zero");
 			VI_MEASURE(core::timings::networking);
 			VI_TRACE("net fd %i sendfile %" PRId64 " off, %" PRId64 " bytes", (int)fd, offset, size);
@@ -3011,7 +3010,6 @@ namespace vitex
 		{
 			VI_ASSERT(stream != nullptr, "stream should be set");
 			VI_ASSERT(callback != nullptr, "callback should be set");
-			VI_ASSERT(offset >= 0, "offset should be set and positive");
 			VI_ASSERT(size > 0, "size should be set and greater than zero");
 			if (fd == INVALID_SOCKET)
 			{

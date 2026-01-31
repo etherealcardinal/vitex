@@ -108,6 +108,7 @@ namespace
 #else
 namespace
 {
+#ifndef VI_FCONTEXT
 	void pack264(void* value, int* x, int* y)
 	{
 		uint64_t subvalue = (uint64_t)value;
@@ -119,6 +120,7 @@ namespace
 		uint64_t subvalue = ((uint64_t)(uint32_t)x) << 32 | (uint32_t)y;
 		return (void*)subvalue;
 	}
+#endif
 	bool local_time(time_t const* const a, struct tm* const b)
 	{
 		return localtime_r(a, b) != nullptr;
@@ -4803,8 +4805,8 @@ namespace vitex
 			int count = vsnprintf(buffer, sizeof(buffer), format, args);
 			va_end(args);
 
-			if (count > sizeof(buffer))
-				count = sizeof(buffer);
+			if (count > (int)sizeof(buffer))
+				count = (int)sizeof(buffer);
 
 			other.append(buffer, count);
 			return other;
@@ -5563,7 +5565,7 @@ namespace vitex
 
 					return (result == -1) ? -1 : j + result + offset;
 				}
-				else if (tolower((const uint8_t)pattern[i]) != tolower((const uint8_t)text[j]))
+				else if (tolower((uint8_t)pattern[i]) != tolower((uint8_t)text[j]))
 					return -1;
 
 				i++;
@@ -5579,8 +5581,8 @@ namespace vitex
 			va_start(args, format);
 			char buffer[BLOB_SIZE];
 			int size = vsnprintf(buffer, sizeof(buffer), format, args);
-			if (size > sizeof(buffer))
-				size = sizeof(buffer);
+			if (size > (int)sizeof(buffer))
+				size = (int)sizeof(buffer);
 			va_end(args);
 			return string(buffer, (size_t)size);
 		}
@@ -8383,7 +8385,7 @@ namespace vitex
 				::close(input_fd);
 				input_fd = -1;
 			}
-			memset(&internal, 0, sizeof(internal));
+			internal = internal_state();
 			return expectation::met;
 		}
 		expects_io<void> process_stream::seek(file_seek mode, int64_t offset)

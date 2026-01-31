@@ -130,7 +130,7 @@ namespace vitex
 					total.push_back(std::move(copy));
 					--left_side; --max;
 				}
-				else if (lines == line)
+				else if (lines == (size_t)line)
 				{
 					core::string copy = core::string(code.substr(start, offset - start));
 					core::stringify::replace_of(copy, "\r\n\t\v", " ");
@@ -950,6 +950,31 @@ namespace vitex
 		}
 		function::function(const function& base) noexcept : vm(base.vm), ptr(base.ptr)
 		{
+		}
+		function::function(function&& base) noexcept : vm(base.vm), ptr(base.ptr)
+		{
+			base.vm = nullptr;
+			base.ptr = nullptr;
+		}
+		function& function::operator=(const function& base) noexcept
+		{
+			if (this == &base)
+				return *this;
+
+			vm = base.vm;
+			ptr = base.ptr;
+			return *this;
+		}
+		function& function::operator=(function&& base) noexcept
+		{
+			if (this == &base)
+				return *this;
+
+			vm = base.vm;
+			ptr = base.ptr;
+			base.vm = nullptr;
+			base.ptr = nullptr;
+			return *this;
 		}
 		void function::add_ref() const
 		{
