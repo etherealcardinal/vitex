@@ -112,7 +112,7 @@ namespace vitex
 				if (date.tm_mday < 10)
 				{
 					append_char('0');
-					append_char('0' + date.tm_mday);
+					append_char('0' + (char)date.tm_mday);
 				}
 				else
 					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_mday));
@@ -124,7 +124,7 @@ namespace vitex
 				if (date.tm_hour < 10)
 				{
 					append_char('0');
-					append_char('0' + date.tm_hour);
+					append_char('0' + (char)date.tm_hour);
 				}
 				else
 					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_hour));
@@ -132,7 +132,7 @@ namespace vitex
 				if (date.tm_min < 10)
 				{
 					append_char('0');
-					append_char('0' + date.tm_min);
+					append_char('0' + (char)date.tm_min);
 				}
 				else
 					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_min));
@@ -140,7 +140,7 @@ namespace vitex
 				if (date.tm_sec < 10)
 				{
 					append_char('0');
-					append_char('0' + date.tm_sec);
+					append_char('0' + (char)date.tm_sec);
 				}
 				else
 					append_view(core::to_string_view(numeric, sizeof(numeric), (uint8_t)date.tm_sec));
@@ -431,7 +431,7 @@ namespace vitex
 					}
 
 					web_socket_op opcode;
-					if (!codec->get_frame(&opcode, &codec->data))
+					if (!codec->get_frame(&opcode, &codec->cache))
 						goto retry;
 
 					state = (uint32_t)web_socket_state::process;
@@ -441,7 +441,7 @@ namespace vitex
 						if (receive)
 						{
 							unique.negate();
-							if (!receive(this, opcode, std::string_view(codec->data.data(), codec->data.size())))
+							if (!receive(this, opcode, std::string_view(codec->cache.data(), codec->cache.size())))
 								next();
 						}
 					}
@@ -2237,11 +2237,11 @@ namespace vitex
 						return core::string(proxy_address);
 				}
 
-				auto address = stream->get_peer_address();
-				if (!address)
-					return address.error();
+				auto peer_address = stream->get_peer_address();
+				if (!peer_address)
+					return peer_address.error();
 
-				return address->get_ip_address();
+				return peer_address->get_ip_address();
 			}
 
 			query::query() : object(core::var::set::object())
@@ -2775,7 +2775,7 @@ namespace vitex
 								break;
 							}
 
-							lower = tolower(value);
+							lower = (char)tolower(value);
 							if ((value != '-') && (lower < 'a' || lower > 'z'))
 								return i;
 
@@ -3640,14 +3640,14 @@ namespace vitex
 					return nullptr;
 				}
 
-				const uint8_t* message; size_t message_length;
-				if ((buffer = tokenize(buffer, buffer_end, &message, &message_length, out)) == nullptr)
+				const uint8_t* submessage; size_t submessage_length;
+				if ((buffer = tokenize(buffer, buffer_end, &submessage, &submessage_length, out)) == nullptr)
 					return nullptr;
 
-				if (message_length == 0)
+				if (submessage_length == 0)
 					return process_headers(buffer, buffer_end, out);
 
-				if (*message != ' ')
+				if (*submessage != ' ')
 				{
 					*out = -1;
 					return nullptr;
@@ -3655,10 +3655,10 @@ namespace vitex
 
 				do
 				{
-					++message;
-					--message_length;
-				} while (*message == ' ');
-				if (!parsing::parse_status_message(this, message, message_length))
+					++submessage;
+					--submessage_length;
+				} while (*submessage == ' ');
+				if (!parsing::parse_status_message(this, submessage, submessage_length))
 				{
 					*out = -1;
 					return nullptr;
@@ -3717,7 +3717,7 @@ namespace vitex
 									return !queue.empty();
 
 								control = 0;
-								fragment = !final;
+								fragment = final ? 1 : 0;
 								opcode = (web_socket_op)op;
 							}
 
@@ -4252,15 +4252,14 @@ namespace vitex
 				{
 					if (base->request.location[i] == '%' && i + 1 < base->request.location.size())
 					{
+						int value = 0;
 						if (base->request.location[i + 1] == 'u')
 						{
-							int value = 0;
 							if (compute::codec::hex_to_decimal(base->request.location, i + 2, 4, value))
 							{
 								char buffer[4];
-								size_t lcount = compute::codec::utf8(value, buffer);
-								if (lcount > 0)
-									base->request.path.append(buffer, lcount);
+								size_t count = compute::codec::utf8(value, buffer);
+								base->request.path.append(buffer, count);
 								i += 5;
 							}
 							else
@@ -4268,10 +4267,9 @@ namespace vitex
 						}
 						else
 						{
-							int value = 0;
 							if (compute::codec::hex_to_decimal(base->request.location, i + 1, 2, value))
 							{
-								base->request.path += value;
+								base->request.path += (char)value;
 								i += 2;
 							}
 							else
@@ -5775,7 +5773,7 @@ namespace vitex
 #define FREE_STREAMING { core::os::file::close(stream); deflateEnd(zstream); core::memory::deallocate(zstream); }
 				z_stream* zstream = (z_stream*)cstream;
 			retry:
-				uint8_t buffer[core::BLOB_SIZE + GZ_HEADER_SIZE], deflate[core::BLOB_SIZE];
+				uint8_t buffer[core::CHUNK_SIZE + GZ_HEADER_SIZE], deflate[core::CHUNK_SIZE];
 				if (!content_length || base->root->state != server_state::working)
 				{
 				cleanup:
@@ -6537,21 +6535,21 @@ namespace vitex
 					boundaries.reserve(request.content.resources.size());
 
 					size_t content_size = 0;
-					for (auto& item : request.content.resources)
+					for (auto& resource : request.content.resources)
 					{
-						if (!item.is_in_memory && item.name.empty())
-							item.name = core::os::path::get_filename(item.path.c_str());
-						if (item.type.empty())
-							item.type = "application/octet-stream";
-						if (item.key.empty())
-							item.key = "file" + core::to_string(boundaries.size() + 1);
+						if (!resource.is_in_memory && resource.name.empty())
+							resource.name = core::os::path::get_filename(resource.path.c_str());
+						if (resource.type.empty())
+							resource.type = "application/octet-stream";
+						if (resource.key.empty())
+							resource.key = "file" + core::to_string(boundaries.size() + 1);
 
 						boundary_block block;
 						block.finish = "\r\n";
-						block.file = &item;
+						block.file = &resource;
 						block.is_final = (boundaries.size() + 1 == request.content.resources.size());
 
-						for (auto& header : item.headers)
+						for (auto& header : resource.headers)
 						{
 							block.data.append(boundary).append("\r\n");
 							block.data.append("Content-disposition: form-data; name=\"").append(header.first).append("\"\r\n\r\n");
@@ -6567,25 +6565,25 @@ namespace vitex
 							block.finish.append("\r\n");
 
 						block.data.append(boundary).append("\r\n");
-						block.data.append("Content-disposition: form-data; name=\"").append(item.key).append("\"; filename=\"").append(item.name).append("\"\r\n");
-						block.data.append("Content-Type: ").append(item.type).append("\r\n\r\n");
+						block.data.append("Content-disposition: form-data; name=\"").append(resource.key).append("\"; filename=\"").append(resource.name).append("\"\r\n");
+						block.data.append("Content-Type: ").append(resource.type).append("\r\n\r\n");
 
-						if (!item.is_in_memory)
+						if (!resource.is_in_memory)
 						{
-							auto state = core::os::file::get_state(item.path);
+							auto state = core::os::file::get_state(resource.path);
 							if (state && !state->is_directory)
-								item.length = state->size;
+								resource.length = state->size;
 							else
-								item.length = 0;
-							content_size += block.data.size() + item.length + block.finish.size();
+								resource.length = 0;
+							content_size += block.data.size() + resource.length + block.finish.size();
 						}
 						else
 						{
-							item.length = item.get_in_memory_contents().size();
-							block.data.append(item.get_in_memory_contents());
+							resource.length = resource.get_in_memory_contents().size();
+							block.data.append(resource.get_in_memory_contents());
 							block.data.append(block.finish);
-							item.path.clear();
-							item.path.shrink_to_fit();
+							resource.path.clear();
+							resource.path.shrink_to_fit();
 							content_size += block.data.size();
 						}
 

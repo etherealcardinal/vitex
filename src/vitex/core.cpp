@@ -1060,7 +1060,7 @@ namespace vitex
 			return std::move(error_message);
 		}
 
-		parser_exception::parser_exception(parser_error new_type) : parser_exception(new_type, -1, core::string())
+		parser_exception::parser_exception(parser_error new_type) : parser_exception(new_type, 0, core::string())
 		{
 		}
 		parser_exception::parser_exception(parser_error new_type, size_t new_offset) : parser_exception(new_type, new_offset, core::string())
@@ -2029,7 +2029,7 @@ namespace vitex
 			}
 			else if (length > new_precision)
 			{
-				char last;
+				char last = '0';
 				while (length > new_precision)
 				{
 					last = source[0];
@@ -2933,9 +2933,9 @@ namespace vitex
 					}
 
 					q.source.insert(0, 1, decimal::int_to_char(qsub));
+					zero_it = r.source.begin();
+					is_zero = true;
 
-					bool is_zero = true;
-					auto zero_it = r.source.begin();
 					for (; zero_it != r.source.end(); ++zero_it)
 					{
 						if (*zero_it != '0')
@@ -3034,10 +3034,10 @@ namespace vitex
 					}
 
 					q.source.insert(0, 1, decimal::int_to_char(qsub));
+					zero_it = r.source.begin();
+					is_zero = true;
 					result = r;
 
-					bool is_zero = true;
-					auto zero_it = r.source.begin();
 					for (; zero_it != r.source.end(); ++zero_it)
 					{
 						if (*zero_it != '0')
@@ -3273,7 +3273,7 @@ namespace vitex
 		}
 		char decimal::int_to_char(const int& value)
 		{
-			return value + '0';
+			return (char)(value + '0');
 		}
 
 		variant::variant() noexcept : type(var_type::undefined), length(0)
@@ -3650,9 +3650,9 @@ namespace vitex
 					return true;
 			}
 		}
-		bool variant::is(var_type value) const
+		bool variant::is(var_type candidate) const
 		{
-			return type == value;
+			return type == candidate;
 		}
 		bool variant::same(const variant& other) const
 		{
@@ -4022,27 +4022,27 @@ namespace vitex
 		}
 		uint8_t date_time::second() const
 		{
-			return timepoint.tm_sec;
+			return (uint8_t)timepoint.tm_sec;
 		}
 		uint8_t date_time::minute() const
 		{
-			return timepoint.tm_min;
+			return (uint8_t)timepoint.tm_min;
 		}
 		uint8_t date_time::hour() const
 		{
-			return timepoint.tm_hour;
+			return (uint8_t)timepoint.tm_hour;
 		}
 		uint8_t date_time::day() const
 		{
-			return timepoint.tm_mday;
+			return (uint8_t)timepoint.tm_mday;
 		}
 		uint8_t date_time::week() const
 		{
-			return timepoint.tm_wday + 1;
+			return (uint8_t)timepoint.tm_wday + 1;
 		}
 		uint8_t date_time::month() const
 		{
-			return timepoint.tm_mon + 1;
+			return (uint8_t)timepoint.tm_mon + 1;
 		}
 		uint32_t date_time::year() const
 		{
@@ -6351,7 +6351,7 @@ namespace vitex
 			if (text == std_color::zero)
 				text = std_color::white;
 
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)background << 4 | (int)text);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (WORD)((int)background << 4 | (int)text));
 #else
 			std::cout << "\033[" << get_color_id(text, false) << ";" << get_color_id(background, true) << "m";
 #endif
@@ -7379,18 +7379,18 @@ namespace vitex
 			VI_ASSERT(data != nullptr, "data should be set");
 			VI_MEASURE(timings::pass);
 			VI_TRACE("mem fd %i readln %i bytes", get_readable_fd(), (int)length);
-			size_t offset = 0;
-			while (offset < length)
+			size_t data_offset = 0;
+			while (data_offset < length)
 			{
-				auto status = read((uint8_t*)data + offset, sizeof(uint8_t));
+				auto status = read((uint8_t*)data + data_offset, sizeof(uint8_t));
 				if (!status)
 					return status;
 				else if (*status != sizeof(uint8_t))
 					break;
-				else if (stringify::is_whitespace(data[offset++]))
+				else if (stringify::is_whitespace(data[data_offset++]))
 					break;
 			}
-			return offset;
+			return data_offset;
 		}
 		expects_io<size_t> memory_stream::read(uint8_t* data, size_t length)
 		{
@@ -8088,7 +8088,7 @@ namespace vitex
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
-		expects_io<size_t> web_stream::write(const uint8_t* data, size_t length)
+		expects_io<size_t> web_stream::write(const uint8_t* data, size_t data_length)
 		{
 			return std::make_error_condition(std::errc::not_supported);
 		}
@@ -10971,16 +10971,14 @@ namespace vitex
 		{
 			if (!size)
 				size = 1;
+
+			threads[((size_t)difficulty::timeout)] = 1;
 #ifndef VI_CXX20
-			const size_t async = (size_t)std::max(std::ceil(size * 0.20), 1.0);
+			threads[((size_t)difficulty::async)] = (size_t)std::max(std::ceil(size * 0.20), 1.0);
 #else
-			const size_t async = 0;
+			threads[((size_t)difficulty::async)] = 0;
 #endif
-			const size_t timeout = 1;
-			const size_t sync = std::max<size_t>(std::min<size_t>(size - async - timeout, size), 1);
-			threads[((size_t)difficulty::async)] = async;
-			threads[((size_t)difficulty::sync)] = sync;
-			threads[((size_t)difficulty::timeout)] = timeout;
+			threads[((size_t)difficulty::sync)] = std::max<size_t>(std::min<size_t>(size - threads[((size_t)difficulty::async)] - threads[((size_t)difficulty::timeout)], size), 1);
 			max_coroutines = std::min<size_t>(size * 8, 256);
 		}
 
@@ -11167,8 +11165,8 @@ namespace vitex
 					if (suspended)
 						return dispatcher.state->has_coroutines();
 
-					size_t active = dispatcher.state->get_count();
-					size_t cache = policy.max_coroutines - active, executions = active;
+					size_t runners = dispatcher.state->get_count();
+					size_t cache = policy.max_coroutines - runners, executions = runners;
 					while (cache > 0 && async->queue.try_dequeue(dispatcher.event))
 					{
 						--cache; ++executions;
@@ -11747,17 +11745,17 @@ namespace vitex
 			if (!nodes)
 				return result;
 
-			for (auto value : *nodes)
+			for (auto* item : *nodes)
 			{
-				if (value->key == name)
-					result.push_back(value);
+				if (item->key == name)
+					result.push_back(item);
 
 				if (!deep)
 					continue;
 
-				vector<schema*> init = value->find_collection(name);
-				for (auto& subvalue : init)
-					result.push_back(subvalue);
+				vector<schema*> init = item->find_collection(name);
+				for (auto& subitem : init)
+					result.push_back(subitem);
 			}
 
 			return result;
@@ -11881,9 +11879,9 @@ namespace vitex
 
 			return result->value;
 		}
-		variant schema::get_attribute_var(const std::string_view& key) const
+		variant schema::get_attribute_var(const std::string_view& fkey) const
 		{
-			return get_var(':' + string(key));
+			return get_var(':' + string(fkey));
 		}
 		schema* schema::get(size_t index) const
 		{
@@ -12849,9 +12847,9 @@ namespace vitex
 					if (!it->name.IsString())
 						continue;
 
-					auto* child = new schema(var::undefined());
-					process_convertion_from_json(&it->value, child);
-					current->set(std::string_view(it->name.GetString(), (size_t)it->name.GetStringLength()), child);
+					auto* ref_child = new schema(var::undefined());
+					process_convertion_from_json(&it->value, ref_child);
+					current->set(std::string_view(it->name.GetString(), (size_t)it->name.GetStringLength()), ref_child);
 				}
 				current->value.type = var_type::object;
 			}
@@ -12861,9 +12859,9 @@ namespace vitex
 				current->reserve((size_t)child->Size());
 				for (auto it = child->Begin(); it != child->End(); ++it)
 				{
-					auto* child = new schema(var::undefined());
-					process_convertion_from_json(it, child);
-					current->push(child);
+					auto* ref_child = new schema(var::undefined());
+					process_convertion_from_json(it, ref_child);
+					current->push(ref_child);
 				}
 			}
 			else
@@ -12946,10 +12944,10 @@ namespace vitex
 				{
 					uint32_t count = os::hw::to_endianness(os::hw::endian::little, (uint32_t)(current->nodes ? current->nodes->size() : 0));
 					callback(var_form::dummy, std::string_view((const char*)&count, sizeof(uint32_t)));
-					if (count > 0)
+					if (current->nodes != nullptr)
 					{
-						for (auto& schema : *current->nodes)
-							process_convertion_to_jsonb(schema, map, callback);
+						for (auto& target : *current->nodes)
+							process_convertion_to_jsonb(target, map, callback);
 					}
 					break;
 				}

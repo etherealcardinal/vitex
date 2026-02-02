@@ -176,10 +176,10 @@ namespace vitex
 
 		struct socket_cidr
 		{
-			compute::uint128 min_value;
-			compute::uint128 max_value;
-			compute::uint128 value;
-			uint8_t mask;
+			compute::uint128 min_value = compute::uint128(0);
+			compute::uint128 max_value = compute::uint128(0);
+			compute::uint128 value = compute::uint128(0);
+			uint8_t mask = 0;
 
 			bool is_matching(const compute::uint128& value);
 		};

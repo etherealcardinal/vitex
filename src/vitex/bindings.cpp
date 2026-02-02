@@ -185,12 +185,12 @@ namespace vitex
 				asITypeInfo* array_type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@").get_type_info();
 				array* array = array::create(array_type);
 
-				int offset = 0, prev = 0, count = 0;
-				while ((offset = (int)base.find(delimiter, prev)) != (int)core::string::npos)
+				size_t offset = 0, prev = 0, count = 0;
+				while ((offset = base.find(delimiter, prev)) != std::string::npos)
 				{
 					array->resize(array->size() + 1);
 					((core::string*)array->at(count))->assign(&base[prev], offset - prev);
-					prev = offset + (int)delimiter.size();
+					prev = offset + delimiter.size();
 					count++;
 				}
 
@@ -360,12 +360,12 @@ namespace vitex
 				asITypeInfo* array_type = vm->get_type_info_by_decl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@").get_type_info();
 				array* array = array::create(array_type);
 
-				int offset = 0, prev = 0, count = 0;
-				while ((offset = (int)base.find(delimiter, prev)) != (int)std::string::npos)
+				size_t offset = 0, prev = 0, count = 0;
+				while ((offset = base.find(delimiter, prev)) != std::string::npos)
 				{
 					array->resize(array->size() + 1);
 					((core::string*)array->at(count))->assign(&base[prev], offset - prev);
-					prev = offset + (int)delimiter.size();
+					prev = offset + delimiter.size();
 					count++;
 				}
 
@@ -8615,7 +8615,7 @@ namespace vitex
 					indent.append("  ");
 					for (size_t i = 0; i < size; i++)
 					{
-						core::string name; void* value; int type_id;
+						core::string name; void* value;
 						if (!source->get_index(i, &name, &value, &type_id))
 							continue;
 

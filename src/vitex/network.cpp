@@ -3718,7 +3718,7 @@ namespace vitex
 		{
 			linger linger;
 			linger.l_onoff = (timeout >= 0 ? 1 : 0);
-			linger.l_linger = timeout;
+			linger.l_linger = (timeout >= 0 ? (uint16_t)timeout : 0);
 
 			VI_TRACE("net fd %i setopt: timewait %i", (int)fd, timeout);
 			if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char*)&linger, sizeof(linger)) != 0)

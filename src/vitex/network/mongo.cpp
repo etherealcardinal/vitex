@@ -3801,11 +3801,11 @@ namespace vitex
 				core::string& result = origin.request;
 				for (auto& word : origin.positions)
 				{
-					auto it = map->find(word.key);
-					if (it == map->end())
+					auto next = map->find(word.key);
+					if (next == map->end())
 						return database_exception(0, "query expects @" + word.key + " constant: " + core::string(name));
 
-					core::string value = utils::get_json(*it->second, word.escape);
+					core::string value = utils::get_json(*next->second, word.escape);
 					if (value.empty())
 						continue;
 

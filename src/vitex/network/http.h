@@ -783,7 +783,7 @@ namespace vitex
 				uint8_t masks;
 
 			public:
-				core::vector<char> data;
+				core::vector<char> cache;
 
 			public:
 				web_codec();

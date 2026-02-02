@@ -905,16 +905,16 @@ namespace vitex
 			base_class(const base_class&) = default;
 			base_class(base_class&&) = default;
 			expects_vm<void> set_function_def(const std::string_view& decl);
-			expects_vm<void> set_operator_copy_address(const asSFuncPtr& value, convention = convention::this_call);
-			expects_vm<void> set_behaviour_address(const std::string_view& decl, behaviours behave, const asSFuncPtr& value, convention = convention::this_call);
+			expects_vm<void> set_operator_copy_address(const asSFuncPtr& value, convention conv = convention::this_call);
+			expects_vm<void> set_behaviour_address(const std::string_view& decl, behaviours behave, const asSFuncPtr& value, convention conv = convention::this_call);
 			expects_vm<void> set_property_address(const std::string_view& decl, int offset);
 			expects_vm<void> set_property_static_address(const std::string_view& decl, void* value);
-			expects_vm<void> set_operator_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::this_call);
-			expects_vm<void> set_method_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::this_call);
-			expects_vm<void> set_method_static_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::cdecl_call);
-			expects_vm<void> set_constructor_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::cdecl_call_obj_first);
-			expects_vm<void> set_constructor_list_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::cdecl_call_obj_first);
-			expects_vm<void> set_destructor_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::cdecl_call_obj_first);
+			expects_vm<void> set_operator_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::this_call);
+			expects_vm<void> set_method_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::this_call);
+			expects_vm<void> set_method_static_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::cdecl_call);
+			expects_vm<void> set_constructor_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::cdecl_call_obj_first);
+			expects_vm<void> set_constructor_list_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::cdecl_call_obj_first);
+			expects_vm<void> set_destructor_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::cdecl_call_obj_first);
 			asITypeInfo* get_type_info() const;
 			int get_type_id() const;
 			virtual bool is_valid() const;
@@ -926,42 +926,42 @@ namespace vitex
 			static core::string get_operator(operators op, const std::string_view& out, const std::string_view& args, bool constant, bool right);
 
 		public:
-			expects_vm<void> set_template_callback(bool(*value)(asITypeInfo*, bool&), convention type = convention::cdecl_call)
+			expects_vm<void> set_template_callback(bool(*value)(asITypeInfo*, bool&), convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<bool(*)(asITypeInfo*, bool&)>(value));
-				auto result = set_behaviour_address("bool f(int&in, bool&out)", behaviours::template_callback, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<bool(*)(asITypeInfo*, bool&)>(value));
+				auto result = set_behaviour_address("bool f(int&in, bool&out)", behaviours::template_callback, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_enum_refs(void(t::* value)(asIScriptEngine*), convention type = convention::this_call)
+			expects_vm<void> set_enum_refs(void(t::* value)(asIScriptEngine*), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, *ptr, type);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_release_refs(void(t::* value)(asIScriptEngine*), convention type = convention::this_call)
+			expects_vm<void> set_release_refs(void(t::* value)(asIScriptEngine*), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t>(value);
-				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, *ptr, type);
+				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_enum_refs_extern(void(*value)(t*, asIScriptEngine*), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_enum_refs_extern(void(*value)(t*, asIScriptEngine*), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t*, asIScriptEngine*)>(value));
-				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t*, asIScriptEngine*)>(value));
+				auto result = set_behaviour_address("void f(int &in)", behaviours::enum_refs, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_release_refs_extern(void(*value)(t*, asIScriptEngine*), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_release_refs_extern(void(*value)(t*, asIScriptEngine*), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t*, asIScriptEngine*)>(value));
-				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t*, asIScriptEngine*)>(value));
+				auto result = set_behaviour_address("void f(int &in)", behaviours::release_refs, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -988,154 +988,154 @@ namespace vitex
 				return set_property_static_address(decl, (void*)value);
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_getter(const std::string_view& type, const std::string_view& name, r(t::* value)(), convention ctype = convention::this_call)
+			expects_vm<void> set_getter(const std::string_view& type_name, const std::string_view& name, r(t::* value)(), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, r>(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), *ptr, ctype);
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type_name.size(), type_name.data(), (int)name.size(), name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_getter_extern(const std::string_view& type, const std::string_view& name, r(*value)(t*), convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_getter_extern(const std::string_view& type_name, const std::string_view& name, r(*value)(t*), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (ctype == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
-				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), *ptr, ctype);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
+				auto result = set_method_address(core::stringify::text("%s get_%s()", (int)type_name.size(), type_name.data(), (int)name.size(), name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(r), convention ctype = convention::this_call)
+			expects_vm<void> set_setter(const std::string_view& type_name, const std::string_view& name, void(t::* value)(r), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, void, r>(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), *ptr, ctype);
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type_name.size(), type_name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_setter_extern(const std::string_view& type, const std::string_view& name, void(*value)(t*, r), convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_setter_extern(const std::string_view& type_name, const std::string_view& name, void(*value)(t*, r), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (ctype == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
-				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), *ptr, ctype);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
+				auto result = set_method_address(core::stringify::text("void set_%s(%s)", (int)name.size(), name.data(), (int)type_name.size(), type_name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_getter(const std::string_view& type, const std::string_view& name, r(t::* value)(uint32_t), convention ctype = convention::this_call)
+			expects_vm<void> set_array_getter(const std::string_view& type_name, const std::string_view& name, r(t::* value)(uint32_t), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, r, uint32_t>(value);
-				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), *ptr, ctype);
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type_name.size(), type_name.data(), (int)name.size(), name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_getter_extern(const std::string_view& type, const std::string_view& name, r(*value)(t*, uint32_t), convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_array_getter_extern(const std::string_view& type_name, const std::string_view& name, r(*value)(t*, uint32_t), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (ctype == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
-				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type.size(), type.data(), (int)name.size(), name.data()).c_str(), *ptr, ctype);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
+				auto result = set_method_address(core::stringify::text("%s get_%s(uint)", (int)type_name.size(), type_name.data(), (int)name.size(), name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_setter(const std::string_view& type, const std::string_view& name, void(t::* value)(uint32_t, r), convention ctype = convention::this_call)
+			expects_vm<void> set_array_setter(const std::string_view& type_name, const std::string_view& name, void(t::* value)(uint32_t, r), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, void, uint32_t, r>(value);
-				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), *ptr, ctype);
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type_name.size(), type_name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r>
-			expects_vm<void> set_array_setter_extern(const std::string_view& type, const std::string_view& name, void(*value)(t*, uint32_t, r), convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_array_setter_extern(const std::string_view& type_name, const std::string_view& name, void(*value)(t*, uint32_t, r), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (ctype == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
-				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type.size(), type.data()).c_str(), *ptr, ctype);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
+				auto result = set_method_address(core::stringify::text("void set_%s(uint, %s)", (int)name.size(), name.data(), (int)type_name.size(), type_name.data()).c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r, typename... a>
-			expects_vm<void> set_operator(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(t::* value)(a...), convention ctype = convention::this_call)
+			expects_vm<void> set_operator(operators operand, uint32_t opts, const std::string_view& out, const std::string_view& args, r(t::* value)(a...), convention conv = convention::this_call)
 			{
-				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
+				core::string op = get_operator(operand, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
 				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
 				asSFuncPtr* ptr = bridge::method_call<t, r, a...>(value);
-				auto result = set_operator_address(op.c_str(), *ptr, ctype);
+				auto result = set_operator_address(op.c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... a>
-			expects_vm<void> set_operator_extern(operators type, uint32_t opts, const std::string_view& out, const std::string_view& args, r(*value)(a...), convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_operator_extern(operators operand, uint32_t opts, const std::string_view& out, const std::string_view& args, r(*value)(a...), convention conv = convention::cdecl_call_obj_first)
 			{
-				core::string op = get_operator(type, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
+				core::string op = get_operator(operand, out, args, opts & (uint32_t)position::constant, opts & (uint32_t)position::right);
 				VI_ASSERT(!op.empty(), "resulting operator should not be empty");
-				asSFuncPtr* ptr = (ctype == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
-				auto result = set_operator_address(op.c_str(), *ptr, ctype);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call(value));
+				auto result = set_operator_address(op.c_str(), *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_operator_copy(convention type = convention::this_call)
+			expects_vm<void> set_operator_copy(convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::operator_call<t, t&, const t&>(&t::operator =);
-				auto result = set_operator_copy_address(*ptr, type);
+				auto result = set_operator_copy_address(*ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_operator_move_copy(convention type = convention::this_call)
+			expects_vm<void> set_operator_move_copy(convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::operator_call<t, t&, t&&>(&t::operator =);
-				auto result = set_operator_copy_address(*ptr, type);
+				auto result = set_operator_copy_address(*ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_operator_copy_static(r(*value)(args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_operator_copy_static(r(*value)(args...), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
-				auto result = set_operator_copy_address(*ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
+				auto result = set_operator_copy_address(*ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r, typename... args>
-			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...), convention type = convention::this_call)
+			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...), convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, r, args...>(value);
-				auto result = set_method_address(decl, *ptr, type);
+				auto result = set_method_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename r, typename... args>
-			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...) const, convention type = convention::this_call)
+			expects_vm<void> set_method(const std::string_view& decl, r(t::* value)(args...) const, convention conv = convention::this_call)
 			{
 				asSFuncPtr* ptr = bridge::method_call<t, r, args...>(value);
-				auto result = set_method_address(decl, *ptr, type);
+				auto result = set_method_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_method_extern(const std::string_view& decl, r(*value)(args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_method_extern(const std::string_view& decl, r(*value)(args...), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
-				auto result = set_method_address(decl, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
+				auto result = set_method_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename r, typename... args>
-			expects_vm<void> set_method_static(const std::string_view& decl, r(*value)(args...), convention type = convention::cdecl_call)
+			expects_vm<void> set_method_static(const std::string_view& decl, r(*value)(args...), convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
-				auto result = set_method_static_address(decl, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<r(*)(args...)>(value) : bridge::function_call<r(*)(args...)>(value));
+				auto result = set_method_static_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename to>
-			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false, convention ctype = convention::cdecl_call_obj_first)
+			expects_vm<void> set_dynamic_cast(const std::string_view& to_decl, bool implicit = false, convention conv = convention::cdecl_call_obj_first)
 			{
-				auto type = implicit ? operators::impl_cast_t : operators::cast_t;
-				auto result1 = set_operator_extern(type, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>, ctype);
+				auto operand = implicit ? operators::impl_cast_t : operators::cast_t;
+				auto result1 = set_operator_extern(operand, 0, to_decl, "", &base_class::dynamic_cast_function<t, to>, conv);
 				if (!result1)
 					return result1;
 
-				auto result2 = set_operator_extern(type, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>, ctype);
+				auto result2 = set_operator_extern(operand, (uint32_t)position::constant, to_decl, "", &base_class::dynamic_cast_function<t, to>, conv);
 				return result2;
 			}
 
@@ -1158,126 +1158,126 @@ namespace vitex
 
 		public:
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor_extern(const std::string_view& decl, t* (*value)(args...), convention type = convention::cdecl_call)
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, t* (*value)(args...), convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<t * (*)(args...)>(value));
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<t * (*)(args...)>(value));
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
-			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call<void(*)(asIScriptGeneric*)>(value);
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor(const std::string_view& decl, convention type = convention::cdecl_call)
+			expects_vm<void> set_constructor(const std::string_view& decl, convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(&bridge::unmanaged_constructor_call<t, args...>) : bridge::function_call(&bridge::unmanaged_constructor_call<t, args...>));
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(&bridge::unmanaged_constructor_call<t, args...>) : bridge::function_call(&bridge::unmanaged_constructor_call<t, args...>));
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, asIScriptGeneric*>
-			expects_vm<void> set_constructor(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_constructor(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::unmanaged_constructor_call<t, asIScriptGeneric*>);
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_constructor_list(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::unmanaged_constructor_list_call<t>);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(value);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, uint64_t type_name, typename... args>
-			expects_vm<void> set_gc_constructor(const std::string_view& decl, convention type = convention::cdecl_call)
+			expects_vm<void> set_gc_constructor(const std::string_view& decl, convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(&bridge::managed_constructor_call<t, type_name, args...>) : bridge::function_call(&bridge::managed_constructor_call<t, type_name, args...>));
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(&bridge::managed_constructor_call<t, type_name, args...>) : bridge::function_call(&bridge::managed_constructor_call<t, type_name, args...>));
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, uint64_t type_name, asIScriptGeneric*>
-			expects_vm<void> set_gc_constructor(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_gc_constructor(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::managed_constructor_call<t, type_name, asIScriptGeneric*>);
-				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, uint64_t type_name>
-			expects_vm<void> set_gc_constructor_list(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_gc_constructor_list(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::managed_constructor_list_call<t, type_name>);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_gc_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_gc_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(value);
-				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, type);
+				auto result = set_behaviour_address(decl, behaviours::list_factory, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename f>
-			expects_vm<void> set_add_ref(convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_add_ref(convention conv = convention::cdecl_call_obj_first)
 			{
 				auto factory_ptr = &ref_base_class::gc_add_ref<f>;
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
-				auto result = set_behaviour_address("void f()", behaviours::add_ref, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
+				auto result = set_behaviour_address("void f()", behaviours::add_ref, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename f>
-			expects_vm<void> set_release(convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_release(convention conv = convention::cdecl_call_obj_first)
 			{
 				auto factory_ptr = &ref_base_class::gc_release<f>;
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
-				auto result = set_behaviour_address("void f()", behaviours::release, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
+				auto result = set_behaviour_address("void f()", behaviours::release, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename f>
-			expects_vm<void> set_mark_ref(convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_mark_ref(convention conv = convention::cdecl_call_obj_first)
 			{
 				auto factory_ptr = &ref_base_class::gc_mark_ref<f>;
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
-				auto result = set_behaviour_address("void f()", behaviours::set_gc_flag, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
+				auto result = set_behaviour_address("void f()", behaviours::set_gc_flag, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename f>
-			expects_vm<void> set_is_marked_ref(convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_is_marked_ref(convention conv = convention::cdecl_call_obj_first)
 			{
 				auto factory_ptr = &ref_base_class::gc_is_marked_ref<f>;
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
-				auto result = set_behaviour_address("bool f()", behaviours::get_gc_flag, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
+				auto result = set_behaviour_address("bool f()", behaviours::get_gc_flag, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename f>
-			expects_vm<void> set_ref_count(convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_ref_count(convention conv = convention::cdecl_call_obj_first)
 			{
 				auto factory_ptr = &ref_base_class::gc_get_ref_count<f>;
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
-				auto result = set_behaviour_address("int f()", behaviours::get_ref_count, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<decltype(factory_ptr)>(factory_ptr) : bridge::function_call<decltype(factory_ptr)>(factory_ptr));
+				auto result = set_behaviour_address("int f()", behaviours::get_ref_count, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -1342,58 +1342,58 @@ namespace vitex
 				return name;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_type_constructor_extern(const std::string_view& decl, void(*value)(t, args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_type_constructor_extern(const std::string_view& decl, void(*value)(t, args...), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t, args...)>(value));
-				auto result = set_behaviour_address(decl, behaviours::construct, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t, args...)>(value));
+				auto result = set_behaviour_address(decl, behaviours::construct, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_type_constructor(const std::string_view& decl, convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_type_constructor(const std::string_view& decl, convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(&bridge::constructor_call<t, args...>) : bridge::function_call(&bridge::constructor_call<t, args...>));
-				auto result = set_constructor_address(decl, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(&bridge::constructor_call<t, args...>) : bridge::function_call(&bridge::constructor_call<t, args...>));
+				auto result = set_constructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, asIScriptGeneric*>
-			expects_vm<void> set_type_constructor(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_type_constructor(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_call<t, asIScriptGeneric*>);
-				auto result = set_constructor_address(decl, *ptr, type);
+				auto result = set_constructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_type_constructor_list(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_type_constructor_list(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_list_call<t>);
-				auto result = set_constructor_list_address(decl, *ptr, type);
+				auto result = set_constructor_list_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_type_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_type_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(value);
-				auto result = set_constructor_list_address(decl, *ptr, type);
+				auto result = set_constructor_list_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_type_destructor(const std::string_view& decl, convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_type_destructor(const std::string_view& decl, convention conv = convention::cdecl_call_obj_first)
 			{
 				asSFuncPtr* ptr = bridge::function_call(&bridge::destructor_call<t>);
-				auto result = set_destructor_address(decl, *ptr, type);
+				auto result = set_destructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_type_destructor_extern(const std::string_view& decl, void(*value)(t, args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_type_destructor_extern(const std::string_view& decl, void(*value)(t, args...), convention conv = convention::cdecl_call_obj_first)
 			{
 				asSFuncPtr* ptr = bridge::function_call<void(*)(t, args...)>(value);
-				auto result = set_destructor_address(decl, *ptr, type);
+				auto result = set_destructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -1410,58 +1410,58 @@ namespace vitex
 
 		public:
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(t, args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_constructor_extern(const std::string_view& decl, void(*value)(t, args...), convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t, args...)>(value));
-				auto result = set_behaviour_address(decl, behaviours::construct, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(value) : bridge::function_call<void(*)(t, args...)>(value));
+				auto result = set_behaviour_address(decl, behaviours::construct, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_constructor(const std::string_view& decl, convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_constructor(const std::string_view& decl, convention conv = convention::cdecl_call_obj_first)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call(&bridge::constructor_call<t, args...>) : bridge::function_call(&bridge::constructor_call<t, args...>));
-				auto result = set_constructor_address(decl, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call(&bridge::constructor_call<t, args...>) : bridge::function_call(&bridge::constructor_call<t, args...>));
+				auto result = set_constructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, asIScriptGeneric*>
-			expects_vm<void> set_constructor(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_constructor(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_call<t, asIScriptGeneric*>);
-				auto result = set_constructor_address(decl, *ptr, type);
+				auto result = set_constructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list(const std::string_view& decl, convention type = convention::generic_call)
+			expects_vm<void> set_constructor_list(const std::string_view& decl, convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(&bridge::constructor_list_call<t>);
-				auto result = set_constructor_list_address(decl, *ptr, type);
+				auto result = set_constructor_list_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_constructor_list_extern(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call(value);
-				auto result = set_constructor_list_address(decl, *ptr, type);
+				auto result = set_constructor_list_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t>
-			expects_vm<void> set_destructor(const std::string_view& decl, convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_destructor(const std::string_view& decl, convention conv = convention::cdecl_call_obj_first)
 			{
 				asSFuncPtr* ptr = bridge::function_call(&bridge::destructor_call<t>);
-				auto result = set_destructor_address(decl, *ptr, type);
+				auto result = set_destructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <typename t, typename... args>
-			expects_vm<void> set_destructor_extern(const std::string_view& decl, void(*value)(t, args...), convention type = convention::cdecl_call_obj_first)
+			expects_vm<void> set_destructor_extern(const std::string_view& decl, void(*value)(t, args...), convention conv = convention::cdecl_call_obj_first)
 			{
 				asSFuncPtr* ptr = bridge::function_call<void(*)(t, args...)>(value);
-				auto result = set_destructor_address(decl, *ptr, type);
+				auto result = set_destructor_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
@@ -2059,7 +2059,7 @@ namespace vitex
 			expects_vm<void> get_type_name_scope(std::string_view* type_name, std::string_view* name_space) const;
 			expects_vm<void> set_function_def(const std::string_view& decl);
 			expects_vm<void> set_type_def(const std::string_view& type, const std::string_view& decl);
-			expects_vm<void> set_function_address(const std::string_view& decl, const asSFuncPtr& value, convention type = convention::cdecl_call);
+			expects_vm<void> set_function_address(const std::string_view& decl, const asSFuncPtr& value, convention conv = convention::cdecl_call);
 			expects_vm<void> set_property_address(const std::string_view& decl, void* value);
 			expects_vm<void> set_string_factory_type(const std::string_view& type);
 			expects_vm<void> set_log_callback(void(*callback)(const asSMessageInfo* message, void* object), void* object);
@@ -2201,18 +2201,18 @@ namespace vitex
 
 		public:
 			template <typename t>
-			expects_vm<void> set_function(const std::string_view& decl, t value, convention type = convention::cdecl_call)
+			expects_vm<void> set_function(const std::string_view& decl, t value, convention conv = convention::cdecl_call)
 			{
-				asSFuncPtr* ptr = (type == convention::generic_call ? bridge::function_generic_call<t>(value) : bridge::function_call<t>(value));
-				auto result = set_function_address(decl, *ptr, type);
+				asSFuncPtr* ptr = (conv == convention::generic_call ? bridge::function_generic_call<t>(value) : bridge::function_call<t>(value));
+				auto result = set_function_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}
 			template <void(*)(asIScriptGeneric*)>
-			expects_vm<void> set_function(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention type = convention::generic_call)
+			expects_vm<void> set_function(const std::string_view& decl, void(*value)(asIScriptGeneric*), convention conv = convention::generic_call)
 			{
 				asSFuncPtr* ptr = bridge::function_generic_call<void (*)(asIScriptGeneric*)>(value);
-				auto result = set_function_address(decl, *ptr, type);
+				auto result = set_function_address(decl, *ptr, conv);
 				function_factory::release_functor(&ptr);
 				return result;
 			}

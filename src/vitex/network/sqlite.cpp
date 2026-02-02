@@ -2187,11 +2187,11 @@ namespace vitex
 				core::string& result = origin.request;
 				for (auto& word : origin.positions)
 				{
-					auto it = map->find(word.key);
-					if (it == map->end())
+					auto next = map->find(word.key);
+					if (next == map->end())
 						return database_exception("query expects @" + word.key + " constant: " + core::string(name));
 
-					core::string value = utils::get_sql(*it->second, word.escape, word.negate);
+					core::string value = utils::get_sql(*next->second, word.escape, word.negate);
 					if (value.empty())
 						continue;
 

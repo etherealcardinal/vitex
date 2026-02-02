@@ -246,13 +246,13 @@ namespace vitex
 
 			for (i = j = 0; i < brackets.size(); i++)
 			{
-				auto& bracket = brackets[i];
-				bracket.branches_count = 0;
-				bracket.branches = j;
+				auto& target = brackets[i];
+				target.branches_count = 0;
+				target.branches = j;
 
 				while (j < branches.size() && branches[j].bracket_index == (int64_t)i)
 				{
-					bracket.branches_count++;
+					target.branches_count++;
 					j++;
 				}
 			}
@@ -1426,7 +1426,7 @@ namespace vitex
 				return 0;
 
 			uint8_t length = bits();
-			return std::max<uint8_t>(1, std::min(16, (length - length % 8 + 8) / 8));
+			return std::max<uint8_t>(1, std::min<uint8_t>(16, (length - length % 8 + 8) / 8));
 		}
 		core::decimal uint128::to_decimal() const
 		{
@@ -2092,7 +2092,7 @@ namespace vitex
 			if (!length--)
 				return 0;
 
-			return std::max<uint16_t>(1, std::min(32, (length - length % 8 + 8) / 8));
+			return std::max<uint16_t>(1, std::min<uint16_t>(32, (length - length % 8 + 8) / 8));
 		}
 		core::decimal uint256::to_decimal() const
 		{
@@ -2450,7 +2450,7 @@ namespace vitex
 		crypto_exception::crypto_exception() : error_code(0)
 		{
 #ifdef VI_OPENSSL
-			error_code = (size_t)ERR_get_error();
+			error_code = (int)ERR_get_error();
 			ERR_print_errors_cb([](const char* message, size_t size, void* exception_ptr)
 			{
 				auto* exception = (crypto_exception*)exception_ptr;
@@ -2465,7 +2465,7 @@ namespace vitex
 			error_message = "error:unsupported";
 #endif
 		}
-		crypto_exception::crypto_exception(size_t new_error_code, const std::string_view& new_message) : error_code(new_error_code)
+		crypto_exception::crypto_exception(int new_error_code, const std::string_view& new_message) : error_code(new_error_code)
 		{
 			error_message = "error:" + core::to_string(error_code) + ":";
 			if (!new_message.empty())
@@ -2477,7 +2477,7 @@ namespace vitex
 		{
 			return "crypto_error";
 		}
-		size_t crypto_exception::code() const noexcept
+		int crypto_exception::code() const noexcept
 		{
 			return error_code;
 		}
@@ -5465,9 +5465,9 @@ namespace vitex
 			uint32_t size = 0; bool OK = true;
 			OK = EVP_DigestInit_ex(context, method, nullptr) == 1 ? OK : false;
 			{
-				uint8_t buffer[core::BLOB_SIZE]; size_t size = 0;
-				while ((size = stream->read(buffer, sizeof(buffer)).or_else(0)) > 0)
-					OK = EVP_DigestUpdate(context, buffer, size) == 1 ? OK : false;
+				uint8_t buffer[core::BLOB_SIZE]; size_t buffer_size = 0;
+				while ((buffer_size = stream->read(buffer, sizeof(buffer)).or_else(0)) > 0)
+					OK = EVP_DigestUpdate(context, buffer, buffer_size) == 1 ? OK : false;
 			}
 			if (OK)
 			{
@@ -5479,7 +5479,6 @@ namespace vitex
 				}
 			}
 			EVP_MD_CTX_destroy(context);
-
 			if (!OK)
 				return crypto_exception();
 
@@ -7052,7 +7051,7 @@ namespace vitex
 		uint32_t crypto::crc32(const std::string_view& data)
 		{
 			VI_TRACE("crypto crc32 %" PRIu64 " bytes", (uint64_t)data.size());
-			uint32_t crc = ~0;
+			uint32_t crc = ~0u;
 			for (auto byte : data)
 			{
 				crc ^= static_cast<uint32_t>(byte);
@@ -7067,7 +7066,7 @@ namespace vitex
 		uint64_t crypto::crc64(const std::string_view& data)
 		{
 			VI_TRACE("crypto crc64 %" PRIu64 " bytes", (uint64_t)data.size());
-			uint64_t crc = ~0;
+			uint64_t crc = ~0u;
 			for (auto byte : data)
 			{
 				crc ^= static_cast<uint64_t>(byte);
@@ -7466,11 +7465,11 @@ namespace vitex
 				if (size - i > 1)
 				{
 					int x = ((uint8_t)(data[i]) << 8) + (uint8_t)data[i + 1];
-					uint8_t e = x / (45 * 45);
+					uint8_t e = (uint8_t)(x / (45 * 45));
 					x %= 45 * 45;
 
-					uint8_t d = x / 45;
-					uint8_t c = x % 45;
+					uint8_t d = (uint8_t)(x / 45);
+					uint8_t c = (uint8_t)(x % 45);
 					result += alphabet[c];
 					result += alphabet[d];
 					result += alphabet[e];
@@ -7478,8 +7477,8 @@ namespace vitex
 				else
 				{
 					int x = (uint8_t)data[i];
-					uint8_t d = x / 45;
-					uint8_t c = x % 45;
+					uint8_t d = (uint8_t)(x / 45);
+					uint8_t c = (uint8_t)(x % 45);
 
 					result += alphabet[c];
 					result += alphabet[d];
@@ -7531,11 +7530,11 @@ namespace vitex
 						break;
 
 					x += a * 45 * 45;
-					result[offset++] = x / 256;
+					result[offset++] = (char)(x / 256);
 					x %= 256;
 				}
 
-				result[offset++] = x;
+				result[offset++] = (char)x;
 			}
 
 			return core::string(result.c_str(), offset);

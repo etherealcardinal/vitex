@@ -367,7 +367,7 @@ namespace vitex
 #endif
 			{
 				if (std::is_signed<t>::value && right < 0)
-					upper = -1;
+					upper = std::numeric_limits<uint64_t>::max();
 			}
 			template <typename s, typename t, typename = typename std::enable_if<std::is_integral<s>::value&& std::is_integral<t>::value, void>::type>
 			uint128(const s& upper_right, const t& lower_right)
@@ -383,7 +383,7 @@ namespace vitex
 			{
 				upper = 0;
 				if (std::is_signed<t>::value && right < 0)
-					upper = -1;
+					upper = std::numeric_limits<uint64_t>::max();
 
 				lower = right;
 				return *this;
@@ -838,7 +838,7 @@ namespace vitex
 #endif
 			{
 				if (std::is_signed<t>::value && right < 0)
-					upper = uint128(-1, -1);
+					upper = uint128(std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
 			}
 			template <typename s, typename t, typename = typename std::enable_if <std::is_integral<s>::value&& std::is_integral<t>::value, void>::type>
 			uint256(const s& upper_right, const t& lower_right)
@@ -863,7 +863,7 @@ namespace vitex
 			{
 				upper = uint128::min();
 				if (std::is_signed<t>::value && right < 0)
-					upper = uint128(-1, -1);
+					upper = uint128(std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
 
 				lower = right;
 				return *this;
@@ -1156,13 +1156,13 @@ namespace vitex
 		class crypto_exception final : public core::basic_exception
 		{
 		private:
-			size_t error_code;
+			int error_code;
 
 		public:
 			crypto_exception();
-			crypto_exception(size_t error_code, const std::string_view& message);
+			crypto_exception(int error_code, const std::string_view& message);
 			const char* type() const noexcept override;
-			size_t code() const noexcept;
+			int code() const noexcept;
 		};
 
 		class compression_exception final : public core::basic_exception
