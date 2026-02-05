@@ -7261,10 +7261,11 @@ namespace vitex
 		core::string codec::encode64(const char alphabet[65], const uint8_t* value, size_t length, bool padding)
 		{
 			VI_ASSERT(value != nullptr, "value should be set");
-			VI_ASSERT(length > 0, "length should be greater than zero");
 			VI_TRACE("codec %s encode-64 %" PRIu64 " bytes", padding ? "padded" : "unpadded", (uint64_t)length);
-
 			core::string result;
+			if (!length)
+				return result;
+
 			uint8_t row3[3];
 			uint8_t row4[4];
 			uint32_t offset = 0, step = 0;
@@ -7312,10 +7313,11 @@ namespace vitex
 		{
 			VI_ASSERT(value != nullptr, "value should be set");
 			VI_ASSERT(is_alphabetic != nullptr, "callback should be set");
-			VI_ASSERT(length > 0, "length should be greater than zero");
 			VI_TRACE("codec decode-64 %" PRIu64 " bytes", (uint64_t)length);
-
 			core::string result;
+			if (!length)
+				return result;
+
 			uint8_t row4[4];
 			uint8_t row3[3];
 			uint32_t offset = 0, step = 0;
