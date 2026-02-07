@@ -564,7 +564,7 @@ namespace vitex
 					for (auto* cache : page.second)
 					{
 						cache->~page_cache();
-						free(cache);
+						::free(cache);
 					}
 				}
 				pages.clear();
@@ -590,7 +590,7 @@ namespace vitex
 				page_address* source = (page_address*)((char*)address - sizeof(page_address));
 				memcpy(&source_address, (char*)source + sizeof(void*), sizeof(void*));
 				if (source_address != address)
-					return free(address);
+					return ::free(address);
 
 				page_cache* cache = nullptr;
 				memcpy(&cache, source, sizeof(void*));
@@ -602,7 +602,7 @@ namespace vitex
 				{
 					cache->page.erase(std::find(cache->page.begin(), cache->page.end(), cache));
 					cache->~page_cache();
-					free(cache);
+					::free(cache);
 				}
 			}
 			void cached_allocator::transfer(void* address, size_t size) noexcept
@@ -1348,7 +1348,7 @@ namespace vitex
 
 			std::unique_lock<std::mutex> unique(context->mutex);
 			context->allocations.erase(address);
-			free(address);
+			::free(address);
 		}
 		void memory::watch(void* address, memory_location&& origin) noexcept
 		{
