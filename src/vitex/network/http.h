@@ -340,6 +340,17 @@ namespace vitex
 				std::pair<size_t, size_t> get_range(core::vector<std::pair<size_t, size_t>>::iterator range, size_t content_length) const;
 			};
 
+			struct ws_fetch_frame : fetch_frame
+			{
+				web_socket_callback destroy;
+				web_socket_status_callback close;
+				web_socket_check_callback dead;
+				web_socket_callback connect;
+				web_socket_callback before_disconnect;
+				web_socket_callback disconnect;
+				web_socket_read_callback receive;
+			};
+
 			class web_socket_frame final : public core::reference<web_socket_frame>
 			{
 				friend class connection;
@@ -968,6 +979,7 @@ namespace vitex
 			};
 
 			core::expects_promise_system<response_frame> fetch(const std::string_view& location, const std::string_view& method = "GET", const fetch_frame& options = fetch_frame());
+			core::expects_promise_system<void> ws_fetch(const std::string_view& location, const ws_fetch_frame& options = ws_fetch_frame());
 		}
 	}
 }

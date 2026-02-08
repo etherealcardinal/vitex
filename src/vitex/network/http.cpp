@@ -6946,6 +6946,68 @@ namespace vitex
 					});
 				});
 			}
+			core::expects_promise_system<void> ws_fetch(const std::string_view& location, const ws_fetch_frame& options)
+			{
+				network::location origin(location);
+				if (origin.protocol != "ws" && origin.protocol != "wss")
+					return core::expects_promise_system<void>(core::system_exception("ws fetch: invalid protocol", std::make_error_condition(std::errc::address_family_not_supported)));
+
+				http::request_frame request;
+				request.cookies = options.cookies;
+				request.headers = options.headers;
+				request.content = options.content;
+				request.location.assign(origin.path);
+				if (!origin.username.empty() || !origin.password.empty())
+					request.set_header("Authorization", permissions::authorize(origin.username, origin.password));
+
+				for (auto& item : origin.query)
+					request.query += item.first + "=" + item.second + "&";
+				if (!request.query.empty())
+					request.query.pop_back();
+
+				uint64_t timeout = options.timeout;
+				bool secure = origin.protocol == "wss";
+				core::string hostname = origin.hostname;
+				core::string port = origin.port > 0 ? core::to_string(origin.port) : core::string(secure ? "443" : "80");
+				int32_t verify_peers = (secure ? (int32_t)options.verify_peers : (int32_t)PEER_NOT_SECURE);
+				return dns::get()->lookup_deferred(hostname, port, secure ? dns_check::secure_connect : dns_check::connect, socket_protocol::tcp, socket_type::stream).then<core::expects_promise_system<void>>([timeout, verify_peers, options, request = std::move(request), origin = std::move(origin)](core::expects_system<socket_address>&& address) mutable -> core::expects_promise_system<void>
+				{
+					if (!address)
+						return core::expects_promise_system<void>(address.error());
+
+					http::client* client = new http::client(timeout);
+					return client->connect_async(*address, verify_peers).then<core::expects_promise_system<void>>([client, options, request = std::move(request)](core::expects_system<void>&& status) mutable -> core::expects_promise_system<void>
+					{
+						if (!status)
+							return core::expects_promise_system<void>(status);
+
+						web_socket_frame* frame = client->get_web_socket();
+						frame->lifetime.destroy = options.destroy;
+						frame->lifetime.close = options.close;
+						frame->lifetime.dead = options.dead;
+						frame->connect = options.connect;
+						frame->before_disconnect = options.before_disconnect;
+						frame->disconnect = options.disconnect;
+						frame->receive = options.receive;
+
+						return client->upgrade(std::move(request));
+					}).then<core::expects_promise_system<void>>([client](core::expects_system<void>&& status) -> core::expects_promise_system<void>
+					{
+						if (!status)
+						{
+							client->release();
+							return core::expects_promise_system<void>(status.error());
+						}
+
+						auto response = std::move(*client->get_response());
+						return client->disconnect().then<core::expects_system<void>>([client, response = std::move(response)](core::expects_system<void>&&) mutable -> core::expects_system<void>
+						{
+							client->release();
+							return core::expectation::met;
+						});
+					});
+				});
+			}
 		}
 	}
 }
