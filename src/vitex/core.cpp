@@ -6309,6 +6309,25 @@ namespace vitex
 			umutex<std::recursive_mutex> unique(state.session);
 			state.status = mode::detached;
 		}
+		void console::echo_off(std::function<void()>&& callback)
+		{
+			VI_ASSERT(callback, "callback must be set");
+#ifdef VI_MICROSOFT
+			DWORD prev = 0;
+			HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+			GetConsoleMode(handle, &prev);
+			SetConsoleMode(handle, prev & (~ENABLE_ECHO_INPUT));
+			callback();
+			SetConsoleMode(handle, prev);
+#else
+			struct termios prev, next;
+			tcgetattr(STDIN_FILENO, &prev);
+			next = prev; next.c_lflag &= ~ECHO;
+			tcsetattr(STDIN_FILENO, TCSANOW, &next);
+			callback();
+			tcsetattr(STDIN_FILENO, TCSANOW, &prev);
+#endif
+		}
 		void console::trace(uint32_t max_frames)
 		{
 			string stacktrace = error_handling::get_stack_trace(0, max_frames);

@@ -3340,6 +3340,7 @@ namespace vitex
 			void detach();
 			void allocate();
 			void deallocate();
+			void echo_off(std::function<void()>&& callback);
 			void trace(uint32_t max_frames = 32);
 			void set_colorization(bool enabled);
 			void add_colorization(const std::string_view& name, std_color foreground_color, std_color background_color = std_color::zero);
