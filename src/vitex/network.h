@@ -385,7 +385,7 @@ namespace vitex
 		{
 		private:
 			std::mutex exclusive;
-			core::hash_map<size_t, std::pair<int64_t, socket_address>> names;
+			core::hash_map<core::string, std::pair<int64_t, socket_address>> names;
 
 		public:
 			dns() noexcept;

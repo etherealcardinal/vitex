@@ -1835,7 +1835,7 @@ namespace vitex
 
 			struct addrinfo* address = nullptr;
 			if (getaddrinfo(hostname.empty() ? nullptr : hostname.data(), service.empty() ? nullptr : service.data(), &hints, &address) != 0)
-				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
+				return core::system_exception(core::stringify::text("dns reverse lookup %s:%s address: invalid address", hostname.data(), service.data()));
 
 			socket_address target = socket_address(hostname, core::from_string<uint16_t>(service).or_else(0), address);
 			freeaddrinfo(address);
@@ -1854,7 +1854,7 @@ namespace vitex
 			VI_MEASURE((uint64_t)core::timings::networking * 3);
 			char reverse_hostname[NI_MAXHOST], reverse_service[NI_MAXSERV];
 			if (getnameinfo(address.get_raw_address(), (socklen_t)address.get_address_size(), reverse_hostname, NI_MAXHOST, reverse_service, NI_MAXSERV, NI_NUMERICSERV) != 0)
-				return core::system_exception(core::stringify::text("dns reverse resolve %s address: invalid address", get_address_identification(address).c_str()));
+				return core::system_exception(core::stringify::text("dns ptr lookup %s address: invalid address", get_address_identification(address).c_str()));
 
 			VI_DEBUG("net dns reverse resolved for entity %s (host %s:%s is used)", get_address_identification(address).c_str(), reverse_hostname, reverse_service);
 			return core::string(reverse_hostname, strnlen(reverse_hostname, sizeof(reverse_hostname)));
@@ -1870,7 +1870,6 @@ namespace vitex
 		{
 			VI_ASSERT(!hostname.empty() && core::stringify::is_cstring(hostname), "host should be set");
 			VI_MEASURE((uint64_t)core::timings::networking * 3);
-			int64_t time = ::time(nullptr);
 			struct addrinfo hints;
 			memset(&hints, 0, sizeof(struct addrinfo));
 			hints.ai_family = AF_UNSPEC;
@@ -1940,18 +1939,17 @@ namespace vitex
 			memcpy(buffer + sizeof(uint32_t) * 3, service.data(), service_size);
 			memcpy(buffer + sizeof(uint32_t) * 3 + service_size, hostname.data(), hostname_size);
 
-			core::key_hash<core::string> hasher;
-			size_t hash = hasher(std::string_view(buffer, header_size + service_size + hostname_size));
+			core::string name = core::string(buffer, header_size + service_size + hostname_size);
 			{
 				core::umutex<std::mutex> unique(exclusive);
-				auto it = names.find(hash);
-				if (it != names.end() && it->second.first > time)
+				auto it = names.find(name);
+				if (it != names.end() && it->second.first > ::time(nullptr))
 					return it->second.second;
 			}
 
 			struct addrinfo* addresses = nullptr;
 			if (getaddrinfo(hostname.empty() ? nullptr : hostname.data(), service.empty() ? nullptr : service.data(), &hints, &addresses) != 0)
-				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()));
+				return core::system_exception(core::stringify::text("dns lookup %s:%s address: domain not found", hostname.data(), service.data()));
 
 			struct addrinfo* target_address = nullptr;
 			core::hash_map<socket_t, addrinfo*> hosts;
@@ -2001,24 +1999,24 @@ namespace vitex
 			if (!target_address)
 			{
 				freeaddrinfo(addresses);
-				return core::system_exception(core::stringify::text("dns resolve %s:%s address: invalid address", hostname.data(), service.data()), std::make_error_condition(std::errc::host_unreachable));
+				return core::system_exception(core::stringify::text("dns lookup %s:%s address: records not found", hostname.data(), service.data()), std::make_error_condition(std::errc::host_unreachable));
 			}
 
 			socket_address result = socket_address(hostname, core::from_string<uint16_t>(service).or_else(0), target_address);
-			VI_DEBUG("net dns resolved for entity %s:%s (address %s is used)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
+			VI_DEBUG("net dns resolved for entity %s:%s (address: %s)", hostname.data(), service.data(), get_ip_address_identification(result).c_str());
 			freeaddrinfo(addresses);
 
 			core::umutex<std::mutex> unique(exclusive);
-			auto it = names.find(hash);
-			if (it != names.end())
+			auto it = names.find(name);
+			if (it == names.end())
 			{
-				it->second.first = time + DNS_TIMEOUT;
-				result = it->second.second;
+				names.insert(std::make_pair(std::move(name), std::make_pair(::time(nullptr) + DNS_TIMEOUT, result)));
+				return result;
 			}
-			else
-				names[hash] = std::make_pair(time + DNS_TIMEOUT, result);
 
-			return result;
+			it->second.first = ::time(nullptr) + DNS_TIMEOUT;
+			it->second.second = std::move(result);
+			return it->second.second;
 		}
 		core::expects_promise_system<socket_address> dns::lookup_deferred(const std::string_view& source_hostname, const std::string_view& source_service, dns_check resolver, socket_protocol proto, socket_type type)
 		{
