@@ -172,7 +172,7 @@ namespace vitex
 				set_expires(0);
 			}
 
-			web_socket_frame::web_socket_frame(socket* new_stream, void* new_user_data) : stream(new_stream), codec(new web_codec()), state((uint32_t)web_socket_state::open), tunneling((uint32_t)tunnel::healthy), active(true), deadly(false), busy(false), user_data(new_user_data)
+			web_socket_frame::web_socket_frame(socket* new_stream, router_entry* new_route) : route(new_route), stream(new_stream), state((uint32_t)web_socket_state::open), tunneling((uint32_t)tunnel::healthy), active(true), deadly(false), busy(false), context_ptr(nullptr)
 			{
 			}
 			web_socket_frame::~web_socket_frame() noexcept
@@ -184,15 +184,93 @@ namespace vitex
 					messages.pop();
 				}
 
-				core::memory::release(codec);
+				while (!parser.queue.empty())
+				{
+					hrm_cache::get()->push(parser.queue.front().second);
+					parser.queue.pop();
+				}
+
 				if (lifetime.destroy)
 					lifetime.destroy(this);
+#ifdef VI_ZLIB
+				z_stream* deflate_stream = (z_stream*)compression.deflate_stream;
+				if (deflate_stream != nullptr)
+				{
+					deflateEnd(deflate_stream);
+					core::memory::deallocate(deflate_stream);
+				}
+
+				z_stream* inflate_stream = (z_stream*)compression.inflate_stream;
+				if (inflate_stream != nullptr)
+				{
+					inflateEnd(inflate_stream);
+					core::memory::deallocate(inflate_stream);
+				}
+#endif
 			}
 			core::expects_system<size_t> web_socket_frame::send(const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
 			{
 				return send(0, buffer, opcode, std::move(callback));
 			}
 			core::expects_system<size_t> web_socket_frame::send(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
+			{
+#ifdef VI_ZLIB
+				if ((opcode == web_socket_op::text || opcode == web_socket_op::binary) && buffer.size() > compression.threshold)
+				{
+					z_stream* deflate_stream = (z_stream*)compression.deflate_stream;
+					if (!deflate_stream)
+					{
+						compression.deflate_stream = core::memory::allocate<z_stream>(sizeof(z_stream));
+						deflate_stream = (z_stream*)compression.deflate_stream;
+						memset(deflate_stream, 0, sizeof(z_stream));
+						if (deflateInit2(deflate_stream, route ? route->compression.quality_level : Z_DEFAULT_COMPRESSION, Z_DEFLATED, -compression.client_max_window_bits, route ? route->compression.memory_level : 8, route ? (int)route->compression.tune : Z_DEFAULT_STRATEGY) != Z_OK)
+						{
+							core::memory::deallocate(deflate_stream);
+							compression.deflate_stream = nullptr;
+							return core::system_exception("failed to init deflate", std::make_error_condition(std::errc::invalid_argument));
+						}
+					}
+
+					bool no_takeover = route ? compression.client_no_context_takeover : compression.server_no_context_takeover;
+					if (!no_takeover)
+						deflateReset(deflate_stream);
+
+					core::string compressed_buffer(buffer.size(), '\0');
+					size_t prev_total_out = (size_t)deflate_stream->total_out;
+					deflate_stream->avail_in = (uInt)buffer.size();
+					deflate_stream->next_in = (Bytef*)buffer.data();
+					deflate_stream->avail_out = (uInt)compressed_buffer.size();
+					deflate_stream->next_out = (Bytef*)compressed_buffer.c_str();
+					while (true)
+					{
+						int result = deflate(deflate_stream, no_takeover ? Z_FULL_FLUSH : Z_SYNC_FLUSH);
+						if (deflate_stream->avail_out == 0)
+						{
+							size_t old_size = compressed_buffer.size();
+							compressed_buffer.resize(old_size * 2);
+							deflate_stream->avail_out = (uInt)(compressed_buffer.size() - old_size);
+							deflate_stream->next_out = (Bytef*)compressed_buffer.data() + old_size;
+							continue;
+						}
+						else if (!deflate_stream->avail_in && (result == Z_STREAM_END || result == Z_OK || result == Z_BUF_ERROR))
+							break;
+
+						return core::system_exception("failed to deflate the message", std::make_error_condition(std::errc::invalid_argument));
+					}
+
+					if (!no_takeover)
+					{
+						size_t trailer_size = 4;
+						compressed_buffer.resize((size_t)deflate_stream->total_out - prev_total_out);
+						if (compressed_buffer.size() >= trailer_size)
+							compressed_buffer.resize(compressed_buffer.size() - trailer_size);
+					}
+					return send_postprocessed(mask, compressed_buffer, opcode, true, std::move(callback));
+				}
+#endif
+				return send_postprocessed(mask, buffer, opcode, false, std::move(callback));
+			}
+			core::expects_system<size_t> web_socket_frame::send_postprocessed(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, bool compressed, web_socket_callback&& callback)
 			{
 				core::umutex<std::mutex> unique(section);
 				if (enqueue(mask, buffer, opcode, callback))
@@ -202,9 +280,9 @@ namespace vitex
 				unique.negate();
 
 				uint8_t header[14];
+				uint8_t header_type = compressed ? (0x80 | 0x40) : 0x80;
 				size_t header_length = 1;
-				header[0] = 0x80 + ((size_t)opcode & 0xF);
-
+				header[0] = header_type + ((size_t)opcode & 0xF);
 				if (buffer.size() < 126)
 				{
 					header[1] = (uint8_t)buffer.size();
@@ -412,36 +490,37 @@ namespace vitex
 					while (true)
 					{
 						auto size = stream->read(buffer, sizeof(buffer));
-						if (size)
+						if (!size)
 						{
-							codec->parse_frame(buffer, *size);
-							continue;
-						}
-
-						if (size.error() == std::errc::operation_would_block)
-						{
-							state = (uint32_t)web_socket_state::receive;
-							break;
+							if (size.error() == std::errc::operation_would_block)
+							{
+								state = (uint32_t)web_socket_state::receive;
+								break;
+							}
+							else
+							{
+								finalize();
+								goto retry;
+							}
 						}
 						else
-						{
-							finalize();
-							goto retry;
-						}
+							parse_frame(buffer, *size);
 					}
 
 					web_socket_op opcode;
-					if (!codec->get_frame(&opcode, &codec->cache))
+					core::string* message = nullptr;
+					hrm_cache* cache = hrm_cache::get();
+					if (!fetch_frame(&opcode, &message))
 						goto retry;
 
 					state = (uint32_t)web_socket_state::process;
 					if (opcode == web_socket_op::text || opcode == web_socket_op::binary)
 					{
-						VI_DEBUG("websocket sock %i frame data: %.*s", (int)stream->get_fd(), (int)codec->data.size(), codec->data.data());
+						VI_DEBUG("websocket sock %i frame data: %.*s", (int)stream->get_fd(), (int)message->size(), message->data());
 						if (receive)
 						{
 							unique.negate();
-							if (!receive(this, opcode, std::string_view(codec->cache.data(), codec->cache.size())))
+							if (!receive(this, opcode, std::string_view(message->data(), message->size())))
 								next();
 						}
 					}
@@ -466,7 +545,11 @@ namespace vitex
 							next();
 					}
 					else
+					{
+						cache->push(message);
 						goto retry;
+					}
+					cache->push(message);
 				}
 				else if (state == (uint32_t)web_socket_state::open)
 				{
@@ -506,11 +589,316 @@ namespace vitex
 			}
 			connection* web_socket_frame::get_connection()
 			{
-				return (connection*)user_data;
+				return (connection*)context_ptr;
 			}
 			client* web_socket_frame::get_client()
 			{
-				return (client*)user_data;
+				return (client*)context_ptr;
+			}
+			bool web_socket_frame::parse_frame(const uint8_t* buffer, size_t size)
+			{
+				if (!buffer || !size)
+					return !parser.queue.empty();
+
+				if (parser.payload.capacity() <= size)
+					parser.payload.resize(size);
+
+				memcpy(parser.payload.data(), buffer, sizeof(char) * size);
+				char* data = parser.payload.data();
+			parse_payload:
+				while (size)
+				{
+					uint8_t index = *data;
+					switch (parser.state)
+					{
+						case pstate::begin:
+						{
+							uint8_t op = index & 0x0f;
+							parser.finalize = (index & 0x80) ? 1 : 0;
+							parser.compress = (index & 0x70) ? 1 : 0;
+							if (op == 0)
+							{
+								if (!parser.fragment)
+									return !parser.queue.empty();
+
+								parser.control = 0;
+							}
+							else if (op & 0x8)
+							{
+								if (op != (uint8_t)web_socket_op::ping && op != (uint8_t)web_socket_op::pong && op != (uint8_t)web_socket_op::close)
+									return !parser.queue.empty();
+
+								if (!parser.finalize)
+									return !parser.queue.empty();
+
+								parser.control = 1;
+								parser.opcode = (web_socket_op)op;
+							}
+							else
+							{
+								if (op != (uint8_t)web_socket_op::text && op != (uint8_t)web_socket_op::binary)
+									return !parser.queue.empty();
+
+								parser.control = 0;
+								parser.fragment = parser.finalize ? 1 : 0;
+								parser.opcode = (web_socket_op)op;
+							}
+
+							parser.state = pstate::length;
+							data++; size--;
+							break;
+						}
+						case pstate::length:
+						{
+							uint8_t length = index & 0x7f;
+							parser.masked = (index & 0x80) ? 1 : 0;
+							parser.masks = 0;
+
+							if (parser.control)
+							{
+								if (length > 125)
+									return !parser.queue.empty();
+
+								parser.remains = length;
+								parser.state = parser.masked ? pstate::mask0 : pstate::end;
+							}
+							else if (length < 126)
+							{
+								parser.remains = length;
+								parser.state = parser.masked ? pstate::mask0 : pstate::end;
+							}
+							else if (length == 126)
+								parser.state = pstate::length160;
+							else
+								parser.state = pstate::length640;
+
+							data++; size--;
+							if (parser.state == pstate::end && parser.remains == 0)
+							{
+								parser.queue.emplace(std::make_pair(parser.opcode, hrm_cache::get()->pop()));
+								goto fetch_payload;
+							}
+							break;
+						}
+						case pstate::length160:
+						{
+							parser.remains = (uint64_t)index << 8;
+							parser.state = pstate::length161;
+							data++; size--;
+							break;
+						}
+						case pstate::length161:
+						{
+							parser.remains |= (uint64_t)index << 0;
+							parser.state = parser.masked ? pstate::mask0 : pstate::end;
+							if (parser.remains < 126)
+								return !parser.queue.empty();
+
+							data++; size--;
+							break;
+						}
+						case pstate::length640:
+						{
+							parser.remains = (uint64_t)index << 56;
+							parser.state = pstate::length641;
+							data++; size--;
+							break;
+						}
+						case pstate::length641:
+						{
+							parser.remains |= (uint64_t)index << 48;
+							parser.state = pstate::length642;
+							data++; size--;
+							break;
+						}
+						case pstate::length642:
+						{
+							parser.remains |= (uint64_t)index << 40;
+							parser.state = pstate::length643;
+							data++; size--;
+							break;
+						}
+						case pstate::length643:
+						{
+							parser.remains |= (uint64_t)index << 32;
+							parser.state = pstate::length644;
+							data++; size--;
+							break;
+						}
+						case pstate::length644:
+						{
+							parser.remains |= (uint64_t)index << 24;
+							parser.state = pstate::length645;
+							data++; size--;
+							break;
+						}
+						case pstate::length645:
+						{
+							parser.remains |= (uint64_t)index << 16;
+							parser.state = pstate::length646;
+							data++; size--;
+							break;
+						}
+						case pstate::length646:
+						{
+							parser.remains |= (uint64_t)index << 8;
+							parser.state = pstate::length647;
+							data++; size--;
+							break;
+						}
+						case pstate::length647:
+						{
+							parser.remains |= (uint64_t)index << 0;
+							parser.state = parser.masked ? pstate::mask0 : pstate::end;
+							if (parser.remains < 65536)
+								return !parser.queue.empty();
+
+							data++; size--;
+							break;
+						}
+						case pstate::mask0:
+						{
+							parser.mask[0] = index;
+							parser.state = pstate::mask1;
+							data++; size--;
+							break;
+						}
+						case pstate::mask1:
+						{
+							parser.mask[1] = index;
+							parser.state = pstate::mask2;
+							data++; size--;
+							break;
+						}
+						case pstate::mask2:
+						{
+							parser.mask[2] = index;
+							parser.state = pstate::mask3;
+							data++; size--;
+							break;
+						}
+						case pstate::mask3:
+						{
+							parser.mask[3] = index;
+							parser.state = pstate::end;
+							data++; size--;
+							if (parser.remains == 0)
+							{
+								parser.queue.emplace(std::make_pair(parser.opcode, hrm_cache::get()->pop()));
+								goto fetch_payload;
+							}
+							break;
+						}
+						case pstate::end:
+						{
+							size_t length = size;
+							if (length > (size_t)parser.remains)
+								length = (size_t)parser.remains;
+
+							if (parser.masked)
+							{
+								for (size_t i = 0; i < length; i++)
+									data[i] ^= parser.mask[parser.masks++ % 4];
+							}
+
+							int8_t merge = (parser.opcode == web_socket_op::next && !parser.queue.empty() ? 1 : 0);
+							core::string* message = hrm_cache::get()->pop();
+							message->assign(std::string_view(data, length));
+							if (parser.compress)
+							{
+								z_stream* inflate_stream = (z_stream*)compression.inflate_stream;
+								if (!inflate_stream)
+								{
+									compression.inflate_stream = core::memory::allocate<z_stream>(sizeof(z_stream));
+									inflate_stream = (z_stream*)compression.inflate_stream;
+									memset(inflate_stream, 0, sizeof(z_stream));
+									if (inflateInit2(inflate_stream, -compression.client_max_window_bits) != Z_OK)
+									{
+										core::memory::deallocate(inflate_stream);
+										compression.inflate_stream = nullptr;
+										goto skip_message;
+									}
+								}
+
+								bool no_takeover = route ? compression.client_no_context_takeover : compression.server_no_context_takeover;
+								if (!no_takeover)
+								{
+									uint8_t trailer[4] = { 0x00, 0x00, 0xff, 0xff };
+									message->append(std::string_view((char*)trailer, sizeof(trailer)));
+								}
+								else
+									inflateReset(inflate_stream);
+
+								auto* decompressed_message = hrm_cache::get()->pop();
+								decompressed_message->resize(message->size() * 2);
+
+								size_t prev_total_out = (size_t)inflate_stream->total_out;
+								inflate_stream->avail_in = (uInt)message->size();
+								inflate_stream->next_in = (Bytef*)message->data();
+								inflate_stream->avail_out = (uInt)decompressed_message->size();
+								inflate_stream->next_out = (Bytef*)decompressed_message->data();
+								while (true)
+								{
+									int result = inflate(inflate_stream, no_takeover ? Z_FULL_FLUSH : Z_SYNC_FLUSH);
+									if (inflate_stream->avail_out == 0)
+									{
+										size_t old_size = decompressed_message->size();
+										decompressed_message->resize(old_size * 2);
+										inflate_stream->avail_out = (uInt)(decompressed_message->size() - old_size);
+										inflate_stream->next_out = (Bytef*)decompressed_message->data() + old_size;
+										continue;
+									}
+									else if (!inflate_stream->avail_in && (result == Z_STREAM_END || result == Z_OK || result == Z_BUF_ERROR))
+										break;
+
+									goto skip_message;
+								}
+								decompressed_message->resize((size_t)inflate_stream->total_out - prev_total_out);
+								hrm_cache::get()->push(message);
+								message = decompressed_message;
+							}
+							if (merge == 0)
+								parser.queue.emplace(std::make_pair(parser.opcode == web_socket_op::next ? web_socket_op::text : parser.opcode, message));
+							else if (merge == 1)
+								parser.queue.front().second->append(*message);
+						skip_message:
+							if (merge != 0)
+								hrm_cache::get()->push(message);
+
+							parser.opcode = web_socket_op::next;
+							data += length;
+							size -= length;
+							parser.remains -= length;
+							if (parser.remains == 0)
+								goto fetch_payload;
+							break;
+						}
+					}
+				}
+
+				return !parser.queue.empty();
+			fetch_payload:
+				if (!parser.control && !parser.finalize)
+					return !parser.queue.empty();
+
+				parser.state = pstate::begin;
+				if (size > 0)
+					goto parse_payload;
+
+				return true;
+			}
+			bool web_socket_frame::fetch_frame(web_socket_op* op, core::string** message)
+			{
+				VI_ASSERT(op != nullptr, "op should be set");
+				VI_ASSERT(message != nullptr, "message should be set");
+				if (parser.queue.empty())
+					return false;
+
+				auto& base = parser.queue.front();
+				*message = base.second;
+				*op = base.first;
+				parser.queue.pop();
+				return true;
 			}
 			bool web_socket_frame::enqueue(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, const web_socket_callback& callback)
 			{
@@ -1322,7 +1710,7 @@ namespace vitex
 					stream.avail_in = (uInt)data.size();
 					stream.next_in = (Bytef*)data.data();
 
-					if (inflateInit2(&stream, (gzip ? 31 : -15)) == Z_OK)
+					if (inflateInit2(&stream, (gzip ? 31 : -MAX_WBITS)) == Z_OK)
 					{
 						core::string buffer(data.size() * 2, '\0');
 						stream.avail_out = (uInt)buffer.size();
@@ -1330,12 +1718,10 @@ namespace vitex
 						while (true)
 						{
 							int result = inflate(&stream, Z_SYNC_FLUSH);
-							if (result == Z_STREAM_END)
+							if (!stream.avail_in && (result == Z_STREAM_END || result == Z_OK || result == Z_BUF_ERROR))
 								break;
-							else if (result != Z_OK)
-								goto exit;
 							else if (stream.avail_out != 0)
-								continue;
+								goto exit;
 
 							size_t old_size = buffer.size();
 							buffer.resize(old_size * 2);
@@ -1343,7 +1729,7 @@ namespace vitex
 							stream.next_out = (Bytef*)buffer.data() + old_size;
 						}
 
-						buffer.resize(buffer.size() - stream.avail_out);
+						buffer.resize(stream.total_out);
 						assign(buffer);
 					exit:
 						inflateEnd(&stream);
@@ -1689,24 +2075,24 @@ namespace vitex
 
 						if (!accept_encoding.empty() && (deflate || gzip))
 						{
-							z_stream fStream;
-							fStream.zalloc = Z_NULL;
-							fStream.zfree = Z_NULL;
-							fStream.opaque = Z_NULL;
-							fStream.avail_in = (uInt)response.content.data.size();
-							fStream.next_in = (Bytef*)response.content.data.data();
+							z_stream zstream;
+							zstream.zalloc = Z_NULL;
+							zstream.zfree = Z_NULL;
+							zstream.opaque = Z_NULL;
+							zstream.avail_in = (uInt)response.content.data.size();
+							zstream.next_in = (Bytef*)response.content.data.data();
 
-							if (deflateInit2(&fStream, route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), route->compression.memory_level, (int)route->compression.tune) == Z_OK)
+							if (deflateInit2(&zstream, route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -MAX_WBITS), route->compression.memory_level, (int)route->compression.tune) == Z_OK)
 							{
 								core::string buffer(response.content.data.size(), '\0');
-								fStream.avail_out = (uInt)buffer.size();
-								fStream.next_out = (Bytef*)buffer.c_str();
-								bool compress = (::deflate(&fStream, Z_FINISH) == Z_STREAM_END);
-								bool flush = (deflateEnd(&fStream) == Z_OK);
-
+								zstream.avail_out = (uInt)buffer.size();
+								zstream.next_out = (Bytef*)buffer.c_str();
+								int result = ::deflate(&zstream, Z_FINISH);
+								bool compress = (result == Z_OK || result == Z_STREAM_END);
+								bool flush = (deflateEnd(&zstream) == Z_OK);
 								if (compress && flush)
 								{
-									response.content.assign(std::string_view(buffer.c_str(), (size_t)fStream.total_out));
+									response.content.assign(std::string_view(buffer.c_str(), (size_t)zstream.total_out));
 									if (response.get_header("Content-Encoding").empty())
 									{
 										if (gzip)
@@ -3667,265 +4053,6 @@ namespace vitex
 				return process_headers(buffer, buffer_end, out);
 			}
 
-			web_codec::web_codec() : state(bytecode::begin), fragment(0)
-			{
-			}
-			bool web_codec::parse_frame(const uint8_t* buffer, size_t size)
-			{
-				if (!buffer || !size)
-					return !queue.empty();
-
-				if (payload.capacity() <= size)
-					payload.resize(size);
-
-				memcpy(payload.data(), buffer, sizeof(char) * size);
-				char* data = payload.data();
-			parse_payload:
-				while (size)
-				{
-					uint8_t index = *data;
-					switch (state)
-					{
-						case bytecode::begin:
-						{
-							uint8_t op = index & 0x0f;
-							if (index & 0x70)
-								return !queue.empty();
-
-							final = (index & 0x80) ? 1 : 0;
-							if (op == 0)
-							{
-								if (!fragment)
-									return !queue.empty();
-
-								control = 0;
-							}
-							else if (op & 0x8)
-							{
-								if (op != (uint8_t)web_socket_op::ping && op != (uint8_t)web_socket_op::pong && op != (uint8_t)web_socket_op::close)
-									return !queue.empty();
-
-								if (!final)
-									return !queue.empty();
-
-								control = 1;
-								opcode = (web_socket_op)op;
-							}
-							else
-							{
-								if (op != (uint8_t)web_socket_op::text && op != (uint8_t)web_socket_op::binary)
-									return !queue.empty();
-
-								control = 0;
-								fragment = final ? 1 : 0;
-								opcode = (web_socket_op)op;
-							}
-
-							state = bytecode::length;
-							data++; size--;
-							break;
-						}
-						case bytecode::length:
-						{
-							uint8_t length = index & 0x7f;
-							masked = (index & 0x80) ? 1 : 0;
-							masks = 0;
-
-							if (control)
-							{
-								if (length > 125)
-									return !queue.empty();
-
-								remains = length;
-								state = masked ? bytecode::mask0 : bytecode::end;
-							}
-							else if (length < 126)
-							{
-								remains = length;
-								state = masked ? bytecode::mask0 : bytecode::end;
-							}
-							else if (length == 126)
-								state = bytecode::length160;
-							else
-								state = bytecode::length640;
-
-							data++; size--;
-							if (state == bytecode::end && remains == 0)
-							{
-								queue.emplace(std::make_pair(opcode, core::vector<char>()));
-								goto fetch_payload;
-							}
-							break;
-						}
-						case bytecode::length160:
-						{
-							remains = (uint64_t)index << 8;
-							state = bytecode::length161;
-							data++; size--;
-							break;
-						}
-						case bytecode::length161:
-						{
-							remains |= (uint64_t)index << 0;
-							state = masked ? bytecode::mask0 : bytecode::end;
-							if (remains < 126)
-								return !queue.empty();
-
-							data++; size--;
-							break;
-						}
-						case bytecode::length640:
-						{
-							remains = (uint64_t)index << 56;
-							state = bytecode::length641;
-							data++; size--;
-							break;
-						}
-						case bytecode::length641:
-						{
-							remains |= (uint64_t)index << 48;
-							state = bytecode::length642;
-							data++; size--;
-							break;
-						}
-						case bytecode::length642:
-						{
-							remains |= (uint64_t)index << 40;
-							state = bytecode::length643;
-							data++; size--;
-							break;
-						}
-						case bytecode::length643:
-						{
-							remains |= (uint64_t)index << 32;
-							state = bytecode::length644;
-							data++; size--;
-							break;
-						}
-						case bytecode::length644:
-						{
-							remains |= (uint64_t)index << 24;
-							state = bytecode::length645;
-							data++; size--;
-							break;
-						}
-						case bytecode::length645:
-						{
-							remains |= (uint64_t)index << 16;
-							state = bytecode::length646;
-							data++; size--;
-							break;
-						}
-						case bytecode::length646:
-						{
-							remains |= (uint64_t)index << 8;
-							state = bytecode::length647;
-							data++; size--;
-							break;
-						}
-						case bytecode::length647:
-						{
-							remains |= (uint64_t)index << 0;
-							state = masked ? bytecode::mask0 : bytecode::end;
-							if (remains < 65536)
-								return !queue.empty();
-
-							data++; size--;
-							break;
-						}
-						case bytecode::mask0:
-						{
-							mask[0] = index;
-							state = bytecode::mask1;
-							data++; size--;
-							break;
-						}
-						case bytecode::mask1:
-						{
-							mask[1] = index;
-							state = bytecode::mask2;
-							data++; size--;
-							break;
-						}
-						case bytecode::mask2:
-						{
-							mask[2] = index;
-							state = bytecode::mask3;
-							data++; size--;
-							break;
-						}
-						case bytecode::mask3:
-						{
-							mask[3] = index;
-							state = bytecode::end;
-							data++; size--;
-							if (remains == 0)
-							{
-								queue.emplace(std::make_pair(opcode, core::vector<char>()));
-								goto fetch_payload;
-							}
-							break;
-						}
-						case bytecode::end:
-						{
-							size_t length = size;
-							if (length > (size_t)remains)
-								length = (size_t)remains;
-
-							if (masked)
-							{
-								for (size_t i = 0; i < length; i++)
-									data[i] ^= mask[masks++ % 4];
-							}
-
-							core::vector<char> message;
-							text_assign(message, std::string_view(data, length));
-							if (opcode == web_socket_op::next && !queue.empty())
-							{
-								auto& top = queue.front();
-								top.second.insert(top.second.end(), message.begin(), message.end());
-							}
-							else
-								queue.emplace(std::make_pair(opcode == web_socket_op::next ? web_socket_op::text : opcode, std::move(message)));
-
-							opcode = web_socket_op::next;
-							data += length;
-							size -= length;
-							remains -= length;
-							if (remains == 0)
-								goto fetch_payload;
-							break;
-						}
-					}
-				}
-
-				return !queue.empty();
-			fetch_payload:
-				if (!control && !final)
-					return !queue.empty();
-
-				state = bytecode::begin;
-				if (size > 0)
-					goto parse_payload;
-
-				return true;
-			}
-			bool web_codec::get_frame(web_socket_op* op, core::vector<char>* message)
-			{
-				VI_ASSERT(op != nullptr, "op should be set");
-				VI_ASSERT(message != nullptr, "message should be set");
-
-				if (queue.empty())
-					return false;
-
-				auto& base = queue.front();
-				*message = std::move(base.second);
-				*op = base.first;
-				queue.pop();
-
-				return true;
-			}
-
 			hrm_cache::hrm_cache() noexcept : hrm_cache(HTTP_HRM_SIZE)
 			{
 			}
@@ -5357,24 +5484,24 @@ namespace vitex
 
 					if (!accept_encoding.empty() && (deflate || gzip))
 					{
-						z_stream stream;
-						stream.zalloc = Z_NULL;
-						stream.zfree = Z_NULL;
-						stream.opaque = Z_NULL;
-						stream.avail_in = (uInt)base->response.content.data.size();
-						stream.next_in = (Bytef*)base->response.content.data.data();
+						z_stream zstream;
+						zstream.zalloc = Z_NULL;
+						zstream.zfree = Z_NULL;
+						zstream.opaque = Z_NULL;
+						zstream.avail_in = (uInt)base->response.content.data.size();
+						zstream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&stream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
+						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -MAX_WBITS), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
 							core::string buffer(base->response.content.data.size(), '\0');
-							stream.avail_out = (uInt)buffer.size();
-							stream.next_out = (Bytef*)buffer.c_str();
-							bool compress = (::deflate(&stream, Z_FINISH) == Z_STREAM_END);
-							bool flush = (deflateEnd(&stream) == Z_OK);
-
+							zstream.avail_out = (uInt)buffer.size();
+							zstream.next_out = (Bytef*)buffer.c_str();
+							int result = ::deflate(&zstream, Z_FINISH);
+							bool compress = (result == Z_OK || result == Z_STREAM_END);
+							bool flush = (deflateEnd(&zstream) == Z_OK);
 							if (compress && flush)
 							{
-								base->response.content.assign(std::string_view(buffer.c_str(), (size_t)stream.total_out));
+								base->response.content.assign(std::string_view(buffer.c_str(), (size_t)zstream.total_out));
 								if (base->response.get_header("Content-Encoding").empty())
 								{
 									if (gzip)
@@ -5712,14 +5839,14 @@ namespace vitex
 						zstream.avail_in = (uInt)base->response.content.data.size();
 						zstream.next_in = (Bytef*)base->response.content.data.data();
 
-						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -15), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
+						if (deflateInit2(&zstream, base->route->compression.quality_level, Z_DEFLATED, (gzip ? 31 : -MAX_WBITS), base->route->compression.memory_level, (int)base->route->compression.tune) == Z_OK)
 						{
 							core::string buffer(base->response.content.data.size(), '\0');
 							zstream.avail_out = (uInt)buffer.size();
 							zstream.next_out = (Bytef*)buffer.c_str();
-							bool compress = (deflate(&zstream, Z_FINISH) == Z_STREAM_END);
+							int result = ::deflate(&zstream, Z_FINISH);
+							bool compress = (result == Z_OK || result == Z_STREAM_END);
 							bool flush = (deflateEnd(&zstream) == Z_OK);
-
 							if (compress && flush)
 								base->response.content.assign(std::string_view(buffer.c_str(), (size_t)zstream.total_out));
 						}
@@ -5857,11 +5984,11 @@ namespace vitex
 				VI_ASSERT(key != nullptr, "key should be set");
 				auto version = base->request.get_header("Sec-WebSocket-Version");
 				if (version.empty() || version != "13")
-					return base->abort(426, "Protocol upgrade required. version \"%s\" is not allowed", version);
+					return base->abort(426, "Protocol upgrade required. Version \"%s\" is not allowed", version);
 
 				char buffer[128];
 				if (key_size + sizeof(HTTP_WEBSOCKET_KEY) >= sizeof(buffer))
-					return base->abort(426, "Protocol upgrade required. supplied key is invalid", version);
+					return base->abort(426, "Protocol upgrade required. Supplied key is invalid", version);
 
 				snprintf(buffer, sizeof(buffer), "%.*s%s", (int)key_size, key, HTTP_WEBSOCKET_KEY);
 				base->request.content.data.clear();
@@ -5880,6 +6007,10 @@ namespace vitex
 				content->append(compute::codec::base64_encode(std::string_view(encoded20, 20)));
 				content->append("\r\n");
 
+				int8_t client_max_window_bits = MAX_WBITS;
+				bool permessage_deflate = false;
+				bool client_no_context_takeover = false;
+				bool server_no_context_takeover = false;
 				auto protocol = base->request.get_header("Sec-WebSocket-Protocol");
 				if (!protocol.empty())
 				{
@@ -5889,17 +6020,51 @@ namespace vitex
 					else
 						content->append("Sec-WebSocket-protocol: ").append(protocol).append("\r\n");
 				}
+#ifdef VI_ZLIB
+				if (base->route->compression.enabled)
+				{
+					auto extensions = core::stringify::split(base->request.get_header("Sec-WebSocket-Extensions"), ';');
+					auto client_max_window_bits_value = std::find_if(extensions.begin(), extensions.end(), [](core::string& x) { return core::stringify::trim(x).find("client_max_window_bits") != std::string::npos; });
+					permessage_deflate = std::find_if(extensions.begin(), extensions.end(), [](core::string& x) { return core::stringify::trim(x).find("permessage-deflate") != std::string::npos; }) != extensions.end();
+					server_no_context_takeover = std::find_if(extensions.begin(), extensions.end(), [](core::string& x) { return core::stringify::trim(x).find("client_no_context_takeover") != std::string::npos; }) != extensions.end();
+					client_no_context_takeover = std::find_if(extensions.begin(), extensions.end(), [](core::string& x) { return core::stringify::trim(x).find("server_no_context_takeover") != std::string::npos; }) != extensions.end();
+					if (permessage_deflate)
+					{
+						if (client_max_window_bits_value != extensions.end())
+						{
+							size_t index = client_max_window_bits_value->find('=');
+							if (index != std::string::npos && index < client_max_window_bits_value->size() - 1)
+							{
+								auto value = core::from_string<uint8_t>(std::string_view(*client_max_window_bits_value).substr(index + 1));
+								if (!value || *value < 8 || *value > MAX_WBITS)
+									return base->abort(400, "Protocol upgrade required. Value of client_max_window_bits is invalid.", version);
 
+								client_max_window_bits = *value;
+								if (client_max_window_bits == 8)
+									client_max_window_bits = 9;
+							}
+						}
+						content->append("Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits=");
+						content->append(core::to_string(client_max_window_bits));
+						if (client_no_context_takeover)
+							content->append("; client_no_context_takeover");
+						if (server_no_context_takeover)
+							content->append("; server_no_context_takeover");
+						content->append("\r\n");
+					}
+				}
+#endif
 				if (base->route->callbacks.headers)
 					base->route->callbacks.headers(base, *content);
 
 				content->append("\r\n", 2);
-				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, base](socket_poll event)
+				return !!base->stream->write_queued((uint8_t*)content->c_str(), content->size(), [content, client_max_window_bits, permessage_deflate, client_no_context_takeover, server_no_context_takeover, base](socket_poll event)
 				{
 					hrm_cache::get()->push(content);
 					if (packet::is_done(event))
 					{
-						base->web_socket = new web_socket_frame(base->stream, base);
+						base->web_socket = new web_socket_frame(base->stream, base->route);
+						base->web_socket->context_ptr = base;
 						base->web_socket->connect = base->route->callbacks.web_socket.connect;
 						base->web_socket->receive = base->route->callbacks.web_socket.receive;
 						base->web_socket->disconnect = base->route->callbacks.web_socket.disconnect;
@@ -5914,6 +6079,13 @@ namespace vitex
 							else
 								base->abort();
 						};
+						if (permessage_deflate)
+						{
+							base->web_socket->compression.client_no_context_takeover = client_no_context_takeover;
+							base->web_socket->compression.server_no_context_takeover = server_no_context_takeover;
+							base->web_socket->compression.client_max_window_bits = client_max_window_bits;
+							base->web_socket->compression.threshold = base->route->compression.min_ws_length;
+						}
 
 						base->stream->set_io_timeout(base->route->web_socket_timeout);
 						if (!base->route->callbacks.web_socket.initiate || !base->route->callbacks.web_socket.initiate(base))
@@ -6377,7 +6549,9 @@ namespace vitex
 					target.set_header("Sec-WebSocket-Key", compute::codec::base64_encode(*random));
 				else
 					target.set_header("Sec-WebSocket-Key", HTTP_WEBSOCKET_KEY);
-
+#ifdef VI_ZLIB
+				target.set_header("Sec-WebSocket-Extensions", "permessage-deflate");
+#endif
 				return send(std::move(target)).then<core::expects_promise_system<void>>([this](core::expects_system<void>&& status) -> core::expects_promise_system<void>
 				{
 					VI_DEBUG("ws handshake %s", request.location.c_str());
@@ -6389,7 +6563,33 @@ namespace vitex
 
 					if (response.get_header("Sec-WebSocket-Accept").empty())
 						return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept failed", std::make_error_condition(std::errc::bad_message)));
+#ifdef VI_ZLIB
+					auto extensions_header = request.get_header("Sec-WebSocket-Extensions");
+					if (!extensions_header.empty() && core::stringify::find(extensions_header, "permessage-deflate").found)
+					{
+						int8_t client_max_window_bits = MAX_WBITS;
+						auto extensions = core::stringify::split(extensions_header, ';');
+						auto client_max_window_bits_value = std::find_if(extensions.begin(), extensions.end(), [](core::string& x) { return core::stringify::trim(x).find("client_max_window_bits") != std::string::npos; });
+						if (client_max_window_bits_value != extensions.end())
+						{
+							size_t index = client_max_window_bits_value->find('=');
+							if (index != std::string::npos && index < client_max_window_bits_value->size() - 1)
+							{
+								auto value = core::from_string<uint8_t>(std::string_view(*client_max_window_bits_value).substr(index + 1));
+								if (!value || *value < 8 || *value > MAX_WBITS)
+									return core::expects_promise_system<void>(core::system_exception("upgrade handshake accept failed: invalid value of client_max_window_bits", std::make_error_condition(std::errc::bad_message)));
 
+								client_max_window_bits = *value;
+								if (client_max_window_bits == 8)
+									client_max_window_bits = 9;
+							}
+						}
+						web_socket->compression.client_no_context_takeover = core::stringify::find(extensions_header, "client_no_context_takeover").found;
+						web_socket->compression.server_no_context_takeover = core::stringify::find(extensions_header, "server_no_context_takeover").found;
+						web_socket->compression.client_max_window_bits = client_max_window_bits;
+						web_socket->compression.threshold = WS_COMPRESSION_THRESHOLD;
+					}
+#endif
 					future = core::expects_promise_system<void>();
 					web_socket->next();
 					return future;
@@ -6669,7 +6869,8 @@ namespace vitex
 				if (web_socket != nullptr)
 					return web_socket;
 
-				web_socket = new web_socket_frame(net.stream, this);
+				web_socket = new web_socket_frame(net.stream, nullptr);
+				web_socket->context_ptr = this;
 				web_socket->lifetime.dead = [](web_socket_frame*)
 				{
 					return false;
@@ -6684,7 +6885,6 @@ namespace vitex
 					else
 						future.set(core::expectation::met);
 				};
-
 				return web_socket;
 			}
 			request_frame* client::get_request()

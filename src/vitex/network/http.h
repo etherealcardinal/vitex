@@ -11,6 +11,7 @@ namespace vitex
 			enum
 			{
 				LABEL_SIZE = 16,
+				WS_COMPRESSION_THRESHOLD = 24,
 				INLINING_SIZE = 768,
 				PAYLOAD_SIZE = (size_t)(1024 * 64)
 			};
@@ -160,8 +161,6 @@ namespace vitex
 			class server;
 
 			class query;
-
-			class web_codec;
 
 			struct error_file
 			{
@@ -363,6 +362,27 @@ namespace vitex
 					gone
 				};
 
+				enum class pstate
+				{
+					begin = 0,
+					length,
+					length160,
+					length161,
+					length640,
+					length641,
+					length642,
+					length643,
+					length644,
+					length645,
+					length646,
+					length647,
+					mask0,
+					mask1,
+					mask2,
+					mask3,
+					end
+				};
+
 			private:
 				struct message
 				{
@@ -373,6 +393,22 @@ namespace vitex
 					web_socket_callback callback;
 				};
 
+				struct
+				{
+					core::single_queue<std::pair<web_socket_op, core::string*>> queue;
+					core::vector<char> payload;
+					uint64_t remains = 0;
+					web_socket_op opcode = web_socket_op::next;
+					pstate state = pstate::begin;
+					uint8_t mask[4] = { 0, 0, 0, 0 };
+					uint8_t fragment = 0;
+					uint8_t finalize = 0;
+					uint8_t compress = 0;
+					uint8_t control = 0;
+					uint8_t masked = 0;
+					uint8_t masks = 0;
+				} parser;
+
 			public:
 				struct
 				{
@@ -381,11 +417,21 @@ namespace vitex
 					web_socket_check_callback dead;
 				} lifetime;
 
+				struct
+				{
+					void* deflate_stream = nullptr;
+					void* inflate_stream = nullptr;
+					bool server_no_context_takeover = false;
+					bool client_no_context_takeover = false;
+					int8_t client_max_window_bits = 0;
+					size_t threshold = std::numeric_limits<size_t>::max();
+				} compression;
+
 			private:
 				std::mutex section;
 				core::single_queue<message> messages;
+				router_entry* route;
 				socket* stream;
-				web_codec* codec;
 				std::atomic<uint32_t> state;
 				std::atomic<uint32_t> tunneling;
 				std::atomic<bool> active;
@@ -397,10 +443,10 @@ namespace vitex
 				web_socket_callback before_disconnect;
 				web_socket_callback disconnect;
 				web_socket_read_callback receive;
-				void* user_data;
+				void* context_ptr;
 
 			public:
-				web_socket_frame(socket* new_stream, void* new_user_data);
+				web_socket_frame(socket* new_stream, router_entry* route);
 				~web_socket_frame() noexcept;
 				core::expects_system<size_t> send(const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
 				core::expects_system<size_t> send(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, web_socket_callback&& callback);
@@ -412,6 +458,9 @@ namespace vitex
 				client* get_client();
 
 			private:
+				core::expects_system<size_t> send_postprocessed(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, bool compressed, web_socket_callback&& callback);
+				bool parse_frame(const uint8_t* buffer, size_t size);
+				bool fetch_frame(web_socket_op* op, core::string** message);
 				void update();
 				void finalize();
 				void dequeue();
@@ -469,6 +518,7 @@ namespace vitex
 				{
 					core::vector<compute::regex_source> files;
 					compression_tune tune = compression_tune::default_tune;
+					size_t min_ws_length = WS_COMPRESSION_THRESHOLD;
 					size_t min_length = 16384;
 					int quality_level = 8;
 					int memory_level = 8;
@@ -751,55 +801,6 @@ namespace vitex
 				const uint8_t* process_headers(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
 				const uint8_t* process_request(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
 				const uint8_t* process_response(const uint8_t* buffer, const uint8_t* buffer_end, int* out);
-			};
-
-			class web_codec final : public core::reference<web_codec>
-			{
-			public:
-				typedef core::single_queue<std::pair<web_socket_op, core::vector<char>>> message_queue;
-
-			private:
-				enum class bytecode
-				{
-					begin = 0,
-					length,
-					length160,
-					length161,
-					length640,
-					length641,
-					length642,
-					length643,
-					length644,
-					length645,
-					length646,
-					length647,
-					mask0,
-					mask1,
-					mask2,
-					mask3,
-					end
-				};
-
-			private:
-				message_queue queue;
-				core::vector<char> payload;
-				uint64_t remains;
-				web_socket_op opcode;
-				bytecode state;
-				uint8_t mask[4];
-				uint8_t fragment;
-				uint8_t final;
-				uint8_t control;
-				uint8_t masked;
-				uint8_t masks;
-
-			public:
-				core::vector<char> cache;
-
-			public:
-				web_codec();
-				bool parse_frame(const uint8_t* buffer, size_t size);
-				bool get_frame(web_socket_op* op, core::vector<char>* message);
 			};
 
 			class hrm_cache final : public core::singleton<hrm_cache>
