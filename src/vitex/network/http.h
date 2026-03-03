@@ -458,7 +458,6 @@ namespace vitex
 				client* get_client();
 
 			private:
-				core::expects_system<size_t> send_postprocessed(uint32_t mask, const std::string_view& buffer, web_socket_op op_code, bool compressed, web_socket_callback&& callback);
 				bool parse_frame(const uint8_t* buffer, size_t size);
 				bool fetch_frame(web_socket_op* op, core::string** message);
 				void update();

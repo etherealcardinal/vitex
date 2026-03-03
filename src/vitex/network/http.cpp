@@ -212,9 +212,16 @@ namespace vitex
 			{
 				return send(0, buffer, opcode, std::move(callback));
 			}
-			core::expects_system<size_t> web_socket_frame::send(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, web_socket_callback&& callback)
+			core::expects_system<size_t> web_socket_frame::send(uint32_t mask, const std::string_view& message, web_socket_op opcode, web_socket_callback&& callback)
 			{
+				core::umutex<std::mutex> unique(section);
+				if (enqueue(mask, message, opcode, callback))
+					return (size_t)0;
+
+				bool compressed = false;
+				std::string_view buffer = message;
 #ifdef VI_ZLIB
+				core::string compressed_buffer;
 				if ((opcode == web_socket_op::text || opcode == web_socket_op::binary) && buffer.size() > compression.threshold)
 				{
 					z_stream* deflate_stream = (z_stream*)compression.deflate_stream;
@@ -235,7 +242,7 @@ namespace vitex
 					if (!no_takeover)
 						deflateReset(deflate_stream);
 
-					core::string compressed_buffer(buffer.size(), '\0');
+					compressed_buffer.resize(buffer.size(), '\0');
 					size_t prev_total_out = (size_t)deflate_stream->total_out;
 					deflate_stream->avail_in = (uInt)buffer.size();
 					deflate_stream->next_in = (Bytef*)buffer.data();
@@ -265,17 +272,11 @@ namespace vitex
 						if (compressed_buffer.size() >= trailer_size)
 							compressed_buffer.resize(compressed_buffer.size() - trailer_size);
 					}
-					return send_postprocessed(mask, compressed_buffer, opcode, true, std::move(callback));
+
+					buffer = compressed_buffer;
+					compressed = true;
 				}
 #endif
-				return send_postprocessed(mask, buffer, opcode, false, std::move(callback));
-			}
-			core::expects_system<size_t> web_socket_frame::send_postprocessed(uint32_t mask, const std::string_view& buffer, web_socket_op opcode, bool compressed, web_socket_callback&& callback)
-			{
-				core::umutex<std::mutex> unique(section);
-				if (enqueue(mask, buffer, opcode, callback))
-					return (size_t)0;
-
 				busy = true;
 				unique.negate();
 
