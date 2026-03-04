@@ -2141,6 +2141,7 @@ namespace vitex
 			bool has_addon(const std::string_view& name);
 			bool is_nullable(int type_id);
 			bool has_debugger();
+			bool using_anonymous_sections() const;
 			bool prefer_code_concatenation() const;
 			bool add_system_addon(const std::string_view& name, const core::vector<core::string>& dependencies, addon_callback&& callback);
 			expects_vm<void> import_file(const std::string_view& path, bool is_remote, core::string& output);

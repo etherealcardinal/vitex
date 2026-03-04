@@ -891,12 +891,7 @@ namespace vitex
 					int line_number = context->get_line_number(i, &column_number);
 					scripting::function next = context->get_function(i);
 					auto section_name = next.get_section_name();
-					stream << "  #" << --top_callstack_size << " at " << core::os::path::get_filename(section_name);
-					if (line_number > 0)
-						stream << ":" << line_number;
-					if (column_number > 0)
-						stream << "," << column_number;
-					stream << " in " << (next.get_decl().empty() ? "[optimized]" : next.get_decl());
+					stream << "  #" << --top_callstack_size << " at " << core::os::path::get_filename(section_name.empty() ? "[optimized]" : section_name) << (line_number > 0 ? line_number : 0) << ":" << (column_number > 0 ? column_number : 0) << " in \"" << (next.get_decl().empty() ? "[optimized]" : next.get_decl()) << "\"";
 					if (top_callstack_size > 0)
 						stream << "\n";
 				}

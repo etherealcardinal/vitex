@@ -2849,6 +2849,13 @@ namespace vitex
 				memory::deallocate<t>(static_cast<t*>(address));
 			}
 #endif
+			void* operator new(size_t size, void* placement_address) noexcept
+			{
+				return placement_address;
+			}
+			void operator delete(void* address, void* placement_address) noexcept
+			{
+			}
 		};
 
 		template <typename t>

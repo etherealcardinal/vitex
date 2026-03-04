@@ -5459,7 +5459,8 @@ namespace vitex
 			auto status = execute_next();
 			if (on_return)
 				on_return(this);
-			context->PopState();
+			if (!status || *status != execution::exception)
+				context->PopState();
 			enable_suspends();
 			return status;
 #else
@@ -5769,7 +5770,9 @@ namespace vitex
 			VI_ASSERT(context != nullptr, "context should be set");
 			VI_ASSERT(core::stringify::is_cstring(info), "info should be set");
 #ifdef VI_ANGELSCRIPT
-			if (!is_suspended() && !executor.deferred_exceptions)
+			if (context->GetState() == asEXECUTION_EXCEPTION)
+				return virtual_exception(virtual_error::already_registered);
+			else if (!is_suspended() && !executor.deferred_exceptions)
 				return function_factory::to_return(context->SetException(info.data(), allow_catch));
 
 			executor.deferred_exception.info = info;
@@ -5968,6 +5971,8 @@ namespace vitex
 		{
 			VI_ASSERT(context != nullptr, "context should be set");
 #ifdef VI_ANGELSCRIPT
+			while (context->IsNested())
+				context->PopState();
 			context->Unprepare();
 			callbacks = events();
 			executor = frame();
