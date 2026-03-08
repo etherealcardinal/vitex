@@ -1902,6 +1902,8 @@ namespace vitex
 		}
 		std::string_view base_class::get_type_name() const
 		{
+			if (!overrider_type.empty())
+				return overrider_type;
 #ifdef VI_ANGELSCRIPT
 			return or_empty(type->GetName());
 #else
@@ -6845,6 +6847,121 @@ namespace vitex
 			return function_factory::to_return<size_t>(r, (size_t)r);
 #else
 			return virtual_exception(virtual_error::not_supported);
+#endif
+		}
+		core::string virtual_machine::export_predefined_symbols()
+		{
+			VI_ASSERT(engine != nullptr, "engine should be set");
+#ifdef VI_ANGELSCRIPT
+			core::string_stream stream;
+			for (asUINT i = 0; i < engine->GetEnumCount(); i++)
+			{
+				auto* type = engine->GetEnumByIndex(i);
+				std::string_view name_space = type->GetNamespace();
+				asUINT values_count = type->GetEnumValueCount();
+				if (values_count > 0)
+				{
+					if (!name_space.empty())
+						stream << "namespace " << name_space << "\n{\n\t";
+
+					stream << "enum " << type->GetName() << (name_space.empty() ? "\n{\n" : "\n\t{\n");
+					for (asUINT j = 0; j < values_count; ++j)
+					{
+						stream << (name_space.empty() ? "\t" : "\t\t") << type->GetEnumValueByIndex(j, nullptr);
+						if (j < values_count - 1)
+							stream << ",";
+						stream << "\n";
+					}
+					stream << (name_space.empty() ? "}\n" : "\t}\n}\n");
+				}
+				else if (!name_space.empty())
+					stream << "namespace " << name_space << " { enum " << type->GetName() << " { } }\n";
+				else
+					stream << "enum " << type->GetName() << " { }\n";
+			}
+			for (asUINT i = 0; i < engine->GetObjectTypeCount(); i++)
+			{
+				auto* type = engine->GetObjectTypeByIndex(i);
+				std::string_view name_space = type->GetNamespace();
+				asUINT behaviours_count = type->GetBehaviourCount();
+				asUINT methods_count = type->GetMethodCount();
+				asUINT properties_count = type->GetPropertyCount();
+				asUINT funcdefs_count = type->GetChildFuncdefCount();
+				bool has_children = behaviours_count > 0 || methods_count > 0 || properties_count > 0 || funcdefs_count > 0;
+				if (!name_space.empty())
+					stream << "namespace " << name_space << (has_children ? "\n{\n\t" : " { ");
+
+				std::string_view name = type->GetName();
+				stream << "class " << name;
+				if (type->GetSubTypeCount() > 0)
+				{
+					stream << "<";
+					for (asUINT j = 0; j < type->GetSubTypeCount(); ++j)
+					{
+						auto* subtype = type->GetSubType(j);
+						stream << subtype->GetName();
+						if (j < type->GetSubTypeCount() - 1)
+							stream << ", ";
+					}
+					stream << ">";
+				}
+
+				if (has_children)
+				{
+					stream << (name_space.empty() ? "\n{\n" : "\n\t{\n");
+					for (asUINT j = 0; j < behaviours_count; ++j)
+					{
+						asEBehaviours behaviours;
+						auto* behaviour = type->GetBehaviourByIndex(j, &behaviours);
+						if (behaviours == asBEHAVE_CONSTRUCT || behaviours == asBEHAVE_DESTRUCT)
+							stream << (name_space.empty() ? "\t" : "\t\t") << behaviour->GetDeclaration(false, true, true) << ";\n";
+					}
+					for (asUINT j = 0; j < methods_count; ++j)
+					{
+						auto* method = type->GetMethodByIndex(j);
+						stream << (name_space.empty() ? "\t" : "\t\t") << method->GetDeclaration(false, true, true) << (method->IsProperty() ? " property;\n" : ";\n");
+					}
+					for (asUINT j = 0; j < properties_count; ++j)
+						stream << (name_space.empty() ? "\t" : "\t\t") << type->GetPropertyDeclaration(j, true) << ";\n";
+					for (asUINT j = 0; j < funcdefs_count; ++j)
+						stream << (name_space.empty() ? "\t" : "\t\t") << "funcdef " << type->GetChildFuncdef(j)->GetFuncdefSignature()->GetDeclaration(false) << ";\n";
+					stream << (name_space.empty() ? "}\n" : "\t}\n}\n");
+				}
+				else if (!name_space.empty())
+					stream << " { } }\n";
+				else
+					stream << " { }\n";
+			}
+			for (asUINT i = 0; i < engine->GetGlobalFunctionCount(); i++)
+			{
+				auto* function = engine->GetGlobalFunctionByIndex(i);
+				std::string_view name_space = function->GetNamespace();
+				if (!name_space.empty())
+					stream << "namespace " << name_space << " { ";
+				stream << function->GetDeclaration(false, false, true) << ";";
+				stream << (name_space.empty() ? "\n" : " }\n");
+			}
+			for (asUINT i = 0; i < engine->GetGlobalPropertyCount(); i++)
+			{
+				const char* name; const char* name_space_ptr; int type_id;
+				engine->GetGlobalPropertyByIndex(i, &name, &name_space_ptr, &type_id, nullptr, nullptr, nullptr, nullptr);
+				std::string_view declaration = engine->GetTypeDeclaration(type_id, true);
+				std::string_view name_space = name_space_ptr;
+				if (!name_space.empty())
+					stream << "namespace " << name_space << " { ";
+				stream << declaration << " " << name << ";";
+				stream << (name_space.empty() ? "\n" : " }\n");
+			}
+			for (asUINT i = 0; i < engine->GetTypedefCount(); ++i)
+			{
+				auto* type = engine->GetTypedefByIndex(i);
+				std::string_view name_space = type->GetNamespace();
+				if (!name_space.empty())
+					stream << "namespace " << name_space << " { ";
+				stream << "typedef " << engine->GetTypeDeclaration(type->GetUnderlyingTypeId()) << " " << type->GetName() << ";";
+				stream << (name_space.empty() ? "\n" : " }\n");
+			}
+			return stream.str();
 #endif
 		}
 		size_t virtual_machine::get_functions_count() const

@@ -891,7 +891,7 @@ namespace vitex
 					int line_number = context->get_line_number(i, &column_number);
 					scripting::function next = context->get_function(i);
 					auto section_name = next.get_section_name();
-					stream << "  #" << --top_callstack_size << " at " << core::os::path::get_filename(section_name.empty() ? "[optimized]" : section_name) << (line_number > 0 ? line_number : 0) << ":" << (column_number > 0 ? column_number : 0) << " in \"" << (next.get_decl().empty() ? "[optimized]" : next.get_decl()) << "\"";
+					stream << "  #" << --top_callstack_size << " at " << core::os::path::get_filename(section_name.empty() ? "[optimized]" : section_name) << ":" << (line_number > 0 ? line_number : 0) << ":" << (column_number > 0 ? column_number : 0) << " in \"" << (next.get_decl().empty() ? "[optimized]" : next.get_decl()) << "\"";
 					if (top_callstack_size > 0)
 						stream << "\n";
 				}
@@ -3279,7 +3279,7 @@ namespace vitex
 				type_info info(info_context);
 				int type_id = info.get_sub_type_id();
 				if (type_id == (int)type_id::void_t)
-					return false;
+					return true;
 
 				if ((type_id & (int)type_id::mask_object_t) && !(type_id & (int)type_id::handle_t))
 				{
@@ -3315,7 +3315,6 @@ namespace vitex
 			}
 			expects_vm<void> promise::generator_callback(compute::preprocessor*, const std::string_view&, core::string& code)
 			{
-				core::stringify::replace(code, "promise<void>", "promise_v");
 				return parser::replace_inline_preconditions("co_await", code, [](const std::string_view& expression) -> expects_vm<core::string>
 				{
 					const char generator[] = ").yield().unwrap()";
@@ -8550,7 +8549,7 @@ namespace vitex
 					bindings::any* source = (bindings::any*)object;
 					return context->to_string(indent, depth - 1, source->get_address_of_object(), source->get_type_id());
 				});
-				context->add_to_string_callback("promise, promise_v", [context](core::string& indent, int depth, void* object, int type_id)
+				context->add_to_string_callback("promise", [context](core::string& indent, int depth, void* object, int type_id)
 				{
 					bindings::promise* source = (bindings::promise*)object;
 					core::string_stream stream;
@@ -9458,20 +9457,20 @@ namespace vitex
 				vpromise->set_method("promise<t>@+ yield()", &promise::yield_if);
 				vpromise->set_method("bool pending()", &promise::is_pending);
 
-				auto vpromise_void = vm->set_class<promise>("promise_v", true);
+				auto vpromise_void = vm->set_class<promise>("promise<void>", true, "promise<void>");
 				vpromise_void->set_enum_refs(&promise::enum_references);
 				vpromise_void->set_release_refs(&promise::release_references);
 				vpromise_void->set_method("void wrap()", &promise::store_void);
 				vpromise_void->set_method("void except(const exception_ptr&in)", &promise::store_exception);
 				vpromise_void->set_method("void unwrap()", &promise::retrieve_void);
-				vpromise_void->set_method("promise_v@+ yield()", &promise::yield_if);
+				vpromise_void->set_method("promise<void>@+ yield()", &promise::yield_if);
 				vpromise_void->set_method("bool pending()", &promise::is_pending);
 
 				bool has_constructor = (!vm->get_library_property(library_features::promise_no_constructor));
 				if (has_constructor)
 				{
 					vpromise->set_constructor_extern("promise<t>@ f(int&in)", &promise::create_factory_type);
-					vpromise_void->set_constructor_extern("promise_v@ f()", &promise::create_factory_void);
+					vpromise_void->set_constructor_extern("promise<void>@ f()", &promise::create_factory_void);
 				}
 
 				bool has_callbacks = (!vm->get_library_property(library_features::promise_no_callbacks));
@@ -9479,7 +9478,7 @@ namespace vitex
 				{
 					vpromise->set_function_def("void promise<t>::when_async(promise<t>@+)");
 					vpromise->set_method<promise, void, asIScriptFunction*>("void when(when_async@)", &promise::when);
-					vpromise_void->set_function_def("void promise_v::when_async(promise_v@+)");
+					vpromise_void->set_function_def("void promise<void>::when_async(promise<void>@+)");
 					vpromise_void->set_method<promise, void, asIScriptFunction*>("void when(when_async@)", &promise::when);
 				}
 

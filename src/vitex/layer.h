@@ -1,13 +1,13 @@
 #ifndef VI_LAYER_H
 #define VI_LAYER_H
 #include "core.h"
-#include <atomic>
-#include <cstdarg>
 
 namespace vitex
 {
 	namespace scripting
 	{
+		class compiler;
+
 		class virtual_machine;
 	}
 

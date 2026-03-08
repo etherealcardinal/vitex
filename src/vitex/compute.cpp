@@ -6719,7 +6719,9 @@ namespace vitex
 					case NID_aria_128_ccm:
 					case NID_aria_192_ccm:
 					case NID_aria_256_ccm:
+#ifdef NID_sm4_ccm
 					case NID_sm4_ccm:
+#endif
 					case NID_chacha20_poly1305:
 					{
 						size_t tag_offset = untagged_value.size() - sizeof(tag);

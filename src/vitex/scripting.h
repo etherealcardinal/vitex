@@ -901,6 +901,9 @@ namespace vitex
 			int type_id;
 
 		public:
+			core::string overrider_type;
+
+		public:
 			base_class(virtual_machine* engine, asITypeInfo* source, int type) noexcept;
 			base_class(const base_class&) = default;
 			base_class(base_class&&) = default;
@@ -2075,6 +2078,7 @@ namespace vitex
 			expects_vm<template_class> set_template_class_address(const std::string_view& decl, const std::string_view& name, size_t size, uint64_t flags = (uint64_t)object_behaviours::ref);
 			expects_vm<type_interface> set_interface(const std::string_view& name);
 			expects_vm<enumeration> set_enum(const std::string_view& name);
+			core::string export_predefined_symbols();
 			void set_code_generator(const std::string_view& name, generator_callback&& callback);
 			void set_preserve_source_code(bool enabled);
 			void set_full_stack_tracing(bool enabled);
@@ -2223,7 +2227,7 @@ namespace vitex
 				return set_property_address(decl, (void*)value);
 			}
 			template <typename t>
-			expects_vm<ref_class> set_class(const std::string_view& name, bool gc)
+			expects_vm<ref_class> set_class(const std::string_view& name, bool gc, const std::string_view& overrider_type = std::string_view())
 			{
 				auto ref_type = get_type_info_by_name(name);
 				if (ref_type.is_valid())
@@ -2232,6 +2236,9 @@ namespace vitex
 				auto data_class = set_class_address(name, sizeof(t), gc ? (size_t)object_behaviours::ref | (size_t)object_behaviours::gc : (size_t)object_behaviours::ref);
 				if (!data_class)
 					return data_class;
+
+				if (!overrider_type.empty())
+					data_class->overrider_type = core::string(overrider_type);
 
 				auto status = data_class->template set_add_ref<t>();
 				if (!status)
