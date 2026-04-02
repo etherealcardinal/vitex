@@ -2099,7 +2099,7 @@ namespace vitex
 			else if (text.size() == 1)
 			{
 				uint8_t value = (uint8_t)text.front();
-				if (!isdigit(value))
+				if (!stringify::is_numeric(value))
 					goto invalid_number;
 
 				source.push_back(value);
@@ -2113,7 +2113,7 @@ namespace vitex
 			size_t index = 0;
 			if (sign != '+' && sign != '-')
 			{
-				if (!isdigit(sign))
+				if (!stringify::is_numeric(sign))
 					goto invalid_number;
 				sign = '+';
 			}
@@ -2126,7 +2126,7 @@ namespace vitex
 			{
 				uint8_t value = text[index++];
 				source.push_back(value);
-				if (!isdigit(value))
+				if (!stringify::is_numeric(value))
 					goto invalid_number;
 			}
 
@@ -2141,7 +2141,7 @@ namespace vitex
 			{
 				uint8_t value = text[index++];
 				source.push_back(value);
-				if (!isdigit(value))
+				if (!stringify::is_numeric(value))
 					goto invalid_number;
 				++length;
 			}
