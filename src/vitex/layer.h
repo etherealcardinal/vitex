@@ -104,7 +104,7 @@ namespace vitex
 					{
 						auto offset = begin;
 						begin += remains > 0 ? --remains, step + 1 : step;
-						tasks.emplace_back(core::cotask<void>([offset, begin, &callback]()
+						tasks.emplace_back(core::cotask<void>([offset, begin, callback]()
 						{
 							for (size_t i = offset; i < begin; i++)
 								callback(i);
