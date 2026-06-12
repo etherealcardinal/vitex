@@ -344,6 +344,7 @@ namespace vitex
 
 			public:
 				connection();
+				connection(tconnection* other_handle);
 				~connection() noexcept;
 				void set_wal_autocheckpoint(uint32_t max_frames);
 				void set_soft_heap_limit(uint64_t memory);
@@ -383,6 +384,7 @@ namespace vitex
 				expects_db<cursor> query(const std::string_view& command, size_t query_ops = 0, session_id session = nullptr);
 				tconnection* get_connection();
 				const core::string& get_address();
+				bool in_transaction();
 				bool is_connected();
 			};
 

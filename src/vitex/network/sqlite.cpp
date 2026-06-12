@@ -563,7 +563,10 @@ namespace vitex
 				return base[response_index].get_array(index);
 			}
 
-			connection::connection() : handle(nullptr), timeout(0)
+			connection::connection() : connection(nullptr)
+			{
+			}
+			connection::connection(tconnection* other_handle) : handle(other_handle), timeout(0)
 			{
 				library_handle = driver::get();
 				if (library_handle != nullptr)
@@ -1112,6 +1115,14 @@ namespace vitex
 			const core::string& connection::get_address()
 			{
 				return source;
+			}
+			bool connection::in_transaction()
+			{
+#ifdef VI_SQLITE
+				return handle ? sqlite3_get_autocommit(handle) == 0 : false;
+#else
+				return false;
+#endif
 			}
 			bool connection::is_connected()
 			{
