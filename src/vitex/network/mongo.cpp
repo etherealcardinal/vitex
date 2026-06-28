@@ -792,7 +792,7 @@ namespace vitex
 #ifdef VI_MONGOC
 				VI_ASSERT(base != nullptr, "schema should be set");
 				size_t length = 0;
-				char* value = bson_as_json(base, &length);
+				char* value = bson_as_relaxed_extended_json(base, &length);
 
 				core::string output;
 				output.assign(value, (uint64_t)length);

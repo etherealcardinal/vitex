@@ -4,6 +4,7 @@
 #include <sstream>
 #define ADDON_ANY "any"
 #ifdef VI_ANGELSCRIPT
+#include <iomanip>
 #include <angelscript.h>
 #include <as_texts.h>
 #include <as_scriptengine.h>
