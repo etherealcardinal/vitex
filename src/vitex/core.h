@@ -3285,6 +3285,26 @@ namespace vitex
 			ualloc& operator= (ualloc&&) noexcept = delete;
 		};
 
+		template <typename function>
+		class uscope
+		{
+		private:
+			function destructor;
+
+		public:
+			uscope(function new_destructor) : destructor(new_destructor)
+			{
+			}
+			uscope(const uscope&) noexcept = delete;
+			uscope(uscope&&) noexcept = delete;
+			~uscope()
+			{
+				destructor();
+			}
+			uscope& operator= (const uscope&) noexcept = delete;
+			uscope& operator= (uscope&&) noexcept = delete;
+		};
+
 		class console final : public singleton<console>
 		{
 		private:

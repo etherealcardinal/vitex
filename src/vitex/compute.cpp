@@ -7610,7 +7610,7 @@ namespace vitex
 			return compression_exception(-1, "unsupported");
 #endif
 		}
-		expects_compression<core::string> codec::decompress(const std::string_view& data)
+		expects_compression<core::string> codec::decompress(const std::string_view& data, size_t max_output_size)
 		{
 #ifdef VI_ZLIB
 			VI_TRACE("codec decompress %" PRIu64 " bytes", (uint64_t)data.size());
@@ -7619,6 +7619,9 @@ namespace vitex
 
 			uLongf source_size = (uLong)data.size();
 			uLongf total_size = source_size * 2;
+			if (max_output_size > 0 && total_size > max_output_size)
+				return compression_exception(Z_MEM_ERROR, core::stringify::text("decompressed buffer exceeds %i bytes cap", (int)max_output_size));
+
 			while (true)
 			{
 				uLongf size = total_size, final_size = source_size;
@@ -7628,6 +7631,8 @@ namespace vitex
 				{
 					core::memory::deallocate(buffer);
 					total_size += source_size;
+					if (max_output_size > 0 && total_size > max_output_size)
+						return compression_exception(code, core::stringify::text("decompressed buffer exceeds %i bytes cap", (int)max_output_size));
 					continue;
 				}
 				else if (code != Z_OK)

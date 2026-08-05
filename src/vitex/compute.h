@@ -1656,7 +1656,7 @@ namespace vitex
 			static core::string base64_url_decode(const std::string_view& value);
 			static core::string shuffle(const char* value, size_t size, uint64_t mask);
 			static expects_compression<core::string> compress(const std::string_view& data, compression type = compression::default_compression);
-			static expects_compression<core::string> decompress(const std::string_view& data);
+			static expects_compression<core::string> decompress(const std::string_view& data, size_t max_output_size = 0);
 			static core::string hex_encode_odd(const std::string_view& value, bool upper_case = false);
 			static core::string hex_encode(const std::string_view& value, bool upper_case = false);
 			static core::string hex_decode(const std::string_view& value);
