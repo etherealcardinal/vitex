@@ -1,7 +1,7 @@
 ## Build: Including all submodules
 Clone this repository recursively
 ```bash
-git clone https://github.com/romanpunia/vitex --recursive
+git clone https://github.com/etherealcardinal/vitex --recursive
 ```
 Generate and build project files while being inside of repository
 ```bash
@@ -15,7 +15,7 @@ cmake --build . --config Release
 ## Build: Including specific submodules
 Clone this repository at top level
 ```bash
-git clone https://github.com/romanpunia/vitex
+git clone https://github.com/etherealcardinal/vitex
 ```
 Initialize needed submodules while being inside of repository
 ```bash
@@ -48,4 +48,4 @@ link_directories(/path/to/vitex)
 target_include_directories(app_name PRIVATE /path/to/vitex)
 target_link_libraries(app_name PRIVATE vitex)
 ```
-Example [CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) with Vitex as subproject
+Example [CMakeLists.txt](https://github.com/etherealcardinal/lynx/blob/master/CMakeLists.txt) with Vitex as subproject

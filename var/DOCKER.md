@@ -10,7 +10,7 @@ There are example docker files that can be used to build this project with all o
 
 Clone this repository recursively
 ```bash
-git clone https://github.com/romanpunia/vitex --recursive
+git clone https://github.com/etherealcardinal/vitex --recursive
 ```
 
 To customize your build you may use following docker build-arg arguments:
