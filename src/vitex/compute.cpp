@@ -906,7 +906,7 @@ namespace vitex
 		void secret_box::randomize_buffer(char* buffer, size_t size)
 		{
 			for (size_t i = 0; i < size; i++)
-				buffer[i] = crypto::random() % std::numeric_limits<char>::max();
+				buffer[i] = 0;
 		}
 		secret_box secret_box::secure(const std::string_view& value)
 		{
@@ -6746,6 +6746,7 @@ namespace vitex
 				int in_size = std::min<int>(core::BLOB_SIZE, (int)(untagged_value.size() - offset)), out_size = 0;
 				if (1 != EVP_DecryptUpdate(context, out_buffer, &out_size, in_buffer + offset, in_size))
 				{
+					memset(out_buffer, 0, sizeof(out_buffer));
 					EVP_CIPHER_CTX_free(context);
 					return crypto_exception();
 				}
@@ -6763,6 +6764,7 @@ namespace vitex
 
 				if (1 != EVP_DecryptFinal_ex(context, out_buffer, &out_size))
 				{
+					memset(out_buffer, 0, sizeof(out_buffer));
 					EVP_CIPHER_CTX_free(context);
 					return crypto_exception();
 				}
@@ -6771,6 +6773,7 @@ namespace vitex
 				goto finalize;
 			}
 
+			memset(out_buffer, 0, sizeof(out_buffer));
 			EVP_CIPHER_CTX_free(context);
 			return output;
 #else
