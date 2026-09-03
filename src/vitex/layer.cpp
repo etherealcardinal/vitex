@@ -480,7 +480,7 @@ namespace vitex
 		{
 			value.wait();
 		}
-		void parallel::wail_all(core::vector<core::promise<void>>&& values)
+		void parallel::wait_all(core::vector<core::promise<void>>&& values)
 		{
 			for (auto& value : values)
 				value.wait();

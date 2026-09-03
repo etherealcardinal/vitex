@@ -72,7 +72,7 @@ namespace vitex
 			static core::promise<void> enqueue(core::task_callback&& callback);
 			static core::vector<core::promise<void>> enqueue_all(core::vector<core::task_callback>&& callbacks);
 			static void wait(core::promise<void>&& value);
-			static void wail_all(core::vector<core::promise<void>>&& values);
+			static void wait_all(core::vector<core::promise<void>>&& values);
 			static size_t get_thread_index();
 			static size_t get_threads();
 
