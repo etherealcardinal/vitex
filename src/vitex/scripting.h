@@ -1969,6 +1969,7 @@ namespace vitex
 			}
 
 		public:
+			static bool has(asIScriptContext* context);
 			static immediate_context* get(asIScriptContext* context);
 			static immediate_context* get();
 		};

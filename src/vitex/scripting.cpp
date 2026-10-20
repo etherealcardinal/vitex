@@ -3745,6 +3745,9 @@ namespace vitex
 		void debugger_context::line_callback(asIScriptContext* base)
 		{
 #ifdef VI_ANGELSCRIPT
+			if (!immediate_context::has(base))
+				return;
+
 			immediate_context* context = immediate_context::get(base);
 			VI_ASSERT(context != nullptr, "context should be set");
 			auto state = base->GetState();
@@ -6377,6 +6380,15 @@ namespace vitex
 		virtual_machine* immediate_context::get_vm()
 		{
 			return vm;
+		}
+		bool immediate_context::has(asIScriptContext* context)
+		{
+			VI_ASSERT(context != nullptr, "context should be set");
+#ifdef VI_ANGELSCRIPT
+			return context->GetUserData(context_ud) != nullptr;
+#else
+			return false;
+#endif
 		}
 		immediate_context* immediate_context::get(asIScriptContext* context)
 		{
