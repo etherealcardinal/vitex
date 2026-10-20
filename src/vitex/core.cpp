@@ -4201,27 +4201,31 @@ namespace vitex
 			for (size_t i = 0; i < other.size(); i++)
 			{
 				char& v = other.at(i);
-				if (v == '\"')
+				if (v == '\\')
 				{
-					if (i > 0 && other.at(i - 1) == '\\')
+					other.insert(other.begin() + i, '\\');
+					i++;
+					continue;
+				}
+				if (v != '\"')
+				{
+					if (v == '\n')
+						v = 'n';
+					else if (v == '\t')
+						v = 't';
+					else if (v == '\v')
+						v = 'v';
+					else if (v == '\b')
+						v = 'b';
+					else if (v == '\r')
+						v = 'r';
+					else if (v == '\f')
+						v = 'f';
+					else if (v == '\a')
+						v = 'a';
+					else
 						continue;
 				}
-				else if (v == '\n')
-					v = 'n';
-				else if (v == '\t')
-					v = 't';
-				else if (v == '\v')
-					v = 'v';
-				else if (v == '\b')
-					v = 'b';
-				else if (v == '\r')
-					v = 'r';
-				else if (v == '\f')
-					v = 'f';
-				else if (v == '\a')
-					v = 'a';
-				else
-					continue;
 
 				other.insert(other.begin() + i, '\\');
 				i++;
