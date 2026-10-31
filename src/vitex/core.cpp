@@ -7913,7 +7913,7 @@ namespace vitex
 #ifdef VI_ZLIB
 			VI_MEASURE(timings::file_system);
 			VI_TRACE("gz fd %i tell", get_readable_fd());
-			long value = gztell((gzFile)io_stream);
+			auto value = gztell((gzFile)io_stream);
 			if (value >= 0)
 				return (size_t)value;
 
