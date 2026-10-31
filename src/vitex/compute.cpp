@@ -11,6 +11,7 @@ extern "C"
 #endif
 #ifdef VI_MICROSOFT
 #include <windows.h>
+#include <intrin.h>
 #else
 #include <time.h>
 #endif
@@ -1398,6 +1399,14 @@ namespace vitex
 		}
 		uint8_t uint128::bits() const
 		{
+#ifdef VI_MICROSOFT
+			unsigned long index = 0;
+			if (upper && _BitScanReverse64(&index, upper))
+				return (uint8_t)(65 + index);
+			if (lower && _BitScanReverse64(&index, lower))
+				return (uint8_t)(1 + index);
+			return 0;
+#else
 			uint8_t out = 0;
 			if (upper)
 			{
@@ -1419,6 +1428,7 @@ namespace vitex
 				}
 			}
 			return out;
+#endif
 		}
 		uint8_t uint128::bytes() const
 		{
@@ -2061,27 +2071,10 @@ namespace vitex
 		}
 		uint16_t uint256::bits() const
 		{
-			uint16_t out = 0;
 			if (upper)
-			{
-				out = 128;
-				uint128 up = upper;
-				while (up)
-				{
-					up >>= uint128(1);
-					out++;
-				}
-			}
-			else
-			{
-				uint128 low = lower;
-				while (low)
-				{
-					low >>= uint128(1);
-					out++;
-				}
-			}
-			return out;
+				return (uint16_t)(128 + upper.bits());
+
+			return lower.bits();
 		}
 		uint16_t uint256::bytes() const
 		{
