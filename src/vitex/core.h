@@ -2542,12 +2542,28 @@ namespace vitex
 					cache type;
 				};
 
+				struct memory_info
+				{
+					uint64_t total_physical = 0;
+					uint64_t available_physical = 0;
+					uint64_t used_physical = 0;
+					uint64_t total_page_file = 0;
+					uint64_t available_page_file = 0;
+					uint64_t used_page_file = 0;
+					uint64_t total_virtual = 0;
+					uint64_t available_virtual = 0;
+					uint64_t page_size = 0;
+					uint64_t process_resident_size = 0;
+					uint64_t process_commit_size = 0;
+				};
+
 			public:
 				static quantity_info get_quantity_info();
 				static cache_info get_cache_info(uint32_t level);
 				static arch get_arch() noexcept;
 				static endian get_endianness() noexcept;
 				static size_t get_frequency() noexcept;
+				static memory_info get_memory_info() noexcept;
 
 			public:
 				template <typename t>

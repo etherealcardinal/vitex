@@ -37,6 +37,7 @@
 #endif
 #ifdef VI_MICROSOFT
 #include <windows.h>
+#include <psapi.h>
 #include <fcntl.h>
 #include <io.h>
 #else
@@ -53,6 +54,7 @@
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <mach-o/dyld.h>
+#include <mach/mach.h>
 #endif
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -8932,6 +8934,131 @@ namespace vitex
 
 			return 0;
 #endif
+		}
+		os::hw::memory_info os::hw::get_memory_info() noexcept
+		{
+			memory_info info;
+
+#ifdef VI_MICROSOFT
+			MEMORYSTATUSEX status;
+			status.dwLength = sizeof(status);
+			if (GlobalMemoryStatusEx(&status))
+			{
+				info.total_physical = (uint64_t)status.ullTotalPhys;
+				info.available_physical = (uint64_t)status.ullAvailPhys;
+				info.used_physical = info.total_physical > info.available_physical ? info.total_physical - info.available_physical : 0;
+				info.total_page_file = (uint64_t)status.ullTotalPageFile;
+				info.available_page_file = (uint64_t)status.ullAvailPageFile;
+				info.used_page_file = info.total_page_file > info.available_page_file ? info.total_page_file - info.available_page_file : 0;
+				info.total_virtual = (uint64_t)status.ullTotalVirtual;
+				info.available_virtual = (uint64_t)status.ullAvailVirtual;
+			}
+
+			SYSTEM_INFO system_info;
+			GetNativeSystemInfo(&system_info);
+			info.page_size = (uint64_t)system_info.dwPageSize;
+
+			PROCESS_MEMORY_COUNTERS_EX counters;
+			counters.cb = sizeof(counters);
+			if (K32GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&counters, sizeof(counters)))
+			{
+				info.process_resident_size = (uint64_t)counters.WorkingSetSize;
+				info.process_commit_size = (uint64_t)counters.PrivateUsage;
+			}
+#elif defined(VI_APPLE)
+			uint64_t memsize = 0;
+			size_t length = sizeof(memsize);
+			if (sysctlbyname("hw.memsize", &memsize, &length, nullptr, 0) == 0)
+				info.total_physical = memsize;
+
+			vm_size_t page_size = 0;
+			if (host_page_size(mach_host_self(), &page_size) == KERN_SUCCESS)
+				info.page_size = (uint64_t)page_size;
+
+			vm_statistics64 statistics;
+			mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+			if (host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t)&statistics, &count) == KERN_SUCCESS && info.page_size)
+				info.available_physical = (uint64_t)(statistics.free_count + statistics.inactive_count) * info.page_size;
+
+			if (info.total_physical >= info.available_physical)
+				info.used_physical = info.total_physical - info.available_physical;
+
+			xsw_usage swap;
+			length = sizeof(swap);
+			if (sysctlbyname("vm.swapusage", &swap, &length, nullptr, 0) == 0)
+			{
+				info.total_page_file = swap.xsu_total;
+				info.used_page_file = swap.xsu_used;
+				info.available_page_file = swap.xsu_total > swap.xsu_used ? swap.xsu_total - swap.xsu_used : 0;
+			}
+
+			task_vm_info task;
+			mach_msg_type_number_t task_count = TASK_VM_INFO_COUNT;
+			if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&task, &task_count) == KERN_SUCCESS)
+			{
+				info.process_resident_size = task.resident_size;
+				info.process_commit_size = task.internal + task.compressed;
+			}
+#else
+			uint64_t mem_free = 0, buffers = 0, cached = 0, reclaimable = 0, commit_limit = 0, committed = 0;
+			std::ifstream meminfo("/proc/meminfo");
+			if (meminfo.is_open() && meminfo)
+			{
+				string line;
+				auto parse = [&](const char* key, uint64_t& value) -> bool
+				{
+					const size_t key_size = strlen(key);
+					if (line.compare(0, key_size, key) != 0)
+						return false;
+
+					value = (uint64_t)std::strtoull(line.c_str() + key_size, nullptr, 10) * 1024ull;
+					return true;
+				};
+
+				while (std::getline(meminfo, line))
+				{
+					if (parse("MemTotal:", info.total_physical)) continue;
+					if (parse("MemAvailable:", info.available_physical)) continue;
+					if (parse("MemFree:", mem_free)) continue;
+					if (parse("Buffers:", buffers)) continue;
+					if (parse("Cached:", cached)) continue;
+					if (parse("SReclaimable:", reclaimable)) continue;
+					if (parse("SwapTotal:", info.total_page_file)) continue;
+					if (parse("SwapFree:", info.available_page_file)) continue;
+					if (parse("CommitLimit:", commit_limit)) continue;
+					if (parse("Committed_AS:", committed)) continue;
+				}
+			}
+
+			if (!info.available_physical)
+			{
+				const auto pages = sysconf(_SC_AVPHYS_PAGES), fallback_page_size = sysconf(_SC_PAGESIZE);
+				if (pages > 0 && fallback_page_size > 0)
+					info.available_physical = (uint64_t)pages * (uint64_t)fallback_page_size;
+			}
+
+			if (info.total_physical >= info.available_physical)
+				info.used_physical = info.total_physical - info.available_physical;
+			if (info.total_page_file >= info.available_page_file)
+				info.used_page_file = info.total_page_file - info.available_page_file;
+
+			info.total_virtual = commit_limit;
+			info.available_virtual = commit_limit > committed ? commit_limit - committed : 0;
+
+			info.page_size = (uint64_t)sysconf(_SC_PAGESIZE);
+
+			std::ifstream statm("/proc/self/statm");
+			if (statm.is_open() && statm && info.page_size)
+			{
+				uint64_t vm_pages = 0, rss_pages = 0, shared_pages = 0;
+				if (statm >> vm_pages >> rss_pages >> shared_pages)
+				{
+					info.process_resident_size = rss_pages * info.page_size;
+					info.process_commit_size = vm_pages > shared_pages ? (vm_pages - shared_pages) * info.page_size : 0;
+				}
+			}
+#endif
+			return info;
 		}
 
 		bool os::directory::is_exists(const std::string_view& path)
