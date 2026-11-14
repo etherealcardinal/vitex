@@ -133,7 +133,7 @@ namespace vitex
 
 							std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
 							slept = true;
-							goto next_statement;
+							goto next_returnable;
 						case SQLITE_ERROR:
 						default:
 							goto stop_execution;
@@ -980,7 +980,8 @@ namespace vitex
 					handle = nullptr;
 					return error;
 				}
-
+				
+				sqlite3_busy_timeout(handle, 5000);
 				VI_DEBUG("sqlite OK open database on 0x%" PRIXPTR, (uintptr_t)handle);
 				return core::expectation::met;
 #else
