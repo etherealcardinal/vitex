@@ -76,6 +76,33 @@ namespace vitex
 {
 	namespace network
 	{
+		static uint16_t location_default_port(const core::string& protocol)
+		{
+			if (protocol == "http" || protocol == "ws")
+				return 80;
+			else if (protocol == "https" || protocol == "wss")
+				return 443;
+			else if (protocol == "ftp")
+				return 21;
+			else if (protocol == "gopher")
+				return 70;
+			else if (protocol == "imap")
+				return 143;
+			else if (protocol == "idap")
+				return 389;
+			else if (protocol == "nfs")
+				return 2049;
+			else if (protocol == "nntp")
+				return 119;
+			else if (protocol == "pop")
+				return 110;
+			else if (protocol == "smtp")
+				return 25;
+			else if (protocol == "telnet")
+				return 23;
+
+			return 0;
+		}
 		static core::expects_io<socket_t> execute_socket(int net, int type, int protocol)
 		{
 			if (!core::os::control::has(core::access_option::net))
@@ -576,7 +603,6 @@ namespace vitex
 			{
 				const char* at_symbol = strchr(host_begin, '@');
 				path_begin = strchr(host_begin, '/');
-
 				if (at_symbol != nullptr && (path_begin == nullptr || at_symbol < path_begin))
 				{
 					core::string login_password;
@@ -617,8 +643,16 @@ namespace vitex
 				{
 					if (path_begin == nullptr)
 					{
-						hostname = host_begin;
-						goto finalize_url;
+						path_begin = strchr(host_begin, '?');
+						if (path_begin == nullptr)
+						{
+							path_begin = strchr(host_begin, '#');
+							if (path_begin == nullptr)
+							{
+								hostname = host_begin;
+								goto finalize_url;
+							}
+						}
 					}
 
 					hostname = core::string(host_begin + (ip_v6_end ? 1 : 0), ip_v6_end ? ip_v6_end : path_begin);
@@ -685,35 +719,99 @@ namespace vitex
 			if (port > 0)
 				return;
 
-			if (protocol == "http" || protocol == "ws")
-				port = 80;
-			else if (protocol == "https" || protocol == "wss")
-				port = 443;
-			else if (protocol == "ftp")
-				port = 21;
-			else if (protocol == "gopher")
-				port = 70;
-			else if (protocol == "imap")
-				port = 143;
-			else if (protocol == "idap")
-				port = 389;
-			else if (protocol == "nfs")
-				port = 2049;
-			else if (protocol == "nntp")
-				port = 119;
-			else if (protocol == "pop")
-				port = 110;
-			else if (protocol == "smtp")
-				port = 25;
-			else if (protocol == "telnet")
-				port = 23;
-
+			port = location_default_port(protocol);
 			if (port > 0 || protocol == "file")
 				return;
 
 			servent* entry = getservbyname(protocol.c_str(), nullptr);
 			if (entry != nullptr)
 				port = entry->s_port;
+		}
+		core::string location::to_url() const noexcept
+		{
+			core::string url;
+			if (!protocol.empty())
+			{
+				url += protocol;
+				url += "://";
+			}
+
+			if (!username.empty())
+			{
+				url += compute::codec::url_encode(username);
+				if (!password.empty())
+				{
+					url += ':';
+					url += compute::codec::url_encode(password);
+				}
+				url += '@';
+			}
+
+			if (hostname.find(':') != core::string::npos)
+			{
+				url += '[';
+				url += hostname;
+				url += ']';
+			}
+			else
+				url += hostname;
+
+			if (port != 0 && port != location_default_port(protocol))
+			{
+				url += ':';
+				url += std::to_string(port);
+			}
+
+			if (!path.empty())
+			{
+				size_t segment_begin = 0;
+				while (segment_begin <= path.size())
+				{
+					size_t slash = path.find('/', segment_begin);
+					if (slash == core::string::npos)
+					{
+						url += compute::codec::url_encode(std::string_view(path).substr(segment_begin));
+						break;
+					}
+
+					url += compute::codec::url_encode(std::string_view(path).substr(segment_begin, slash - segment_begin));
+					url += '/';
+					segment_begin = slash + 1;
+				}
+			}
+			else if (!protocol.empty() || !hostname.empty())
+				url += '/';
+
+			if (!query.empty())
+			{
+				core::vector<core::string> keys;
+				keys.reserve(query.size());
+				for (auto& item : query)
+					keys.push_back(item.first);
+
+				url += '?';
+				std::sort(keys.begin(), keys.end());
+				for (size_t i = 0; i != keys.size(); ++i)
+				{
+					if (i != 0)
+						url += '&';
+
+					auto found = query.find(keys[i]);
+					url += compute::codec::url_encode(keys[i]);
+					if (found != query.end() && !found->second.empty())
+					{
+						url += '=';
+						url += compute::codec::url_encode(found->second);
+					}
+				}
+			}
+
+			if (!fragment.empty())
+			{
+				url += '#';
+				url += fragment;
+			}
+			return url;
 		}
 
 		x509_blob::x509_blob(void* new_pointer) noexcept : pointer(new_pointer)

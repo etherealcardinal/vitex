@@ -113,6 +113,7 @@ namespace vitex
 			location(location&&) noexcept = default;
 			location& operator= (const location&) = default;
 			location& operator= (location&&) noexcept = default;
+			core::string to_url() const noexcept;
 		};
 
 		struct x509_blob
